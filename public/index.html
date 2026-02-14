@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FiatLux - Графік відключення світла</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .current-time {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .api-status {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .api-status.connected {
+            color: #4ade80;
+        }
+
+        .api-status.disconnected {
+            color: #ef4444;
+        }
+
+        .status-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .status-label {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .status-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+        }
+
+        .power-on {
+            background: #4ade80;
+            animation: pulse-green 2s infinite;
+        }
+
+        .power-off {
+            background: #ef4444;
+            animation: pulse-red 2s infinite;
+        }
+
+        @keyframes pulse-green {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+            50% { box-shadow: 0 0 0 15px rgba(74, 222, 128, 0); }
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            50% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+        }
+
+        .countdown {
+            text-align: right;
+        }
+
+        .countdown-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .countdown-time {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .timeline {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .timeline-header {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .timeline-subheader {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .timeline-container {
+            position: relative;
+            height: 60px;
+            background: #f3f4f6;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .timeline-scroll {
+            position: relative;
+            height: 100%;
+            width: 100%;
+        }
+
+        .timeline-hours {
+            display: flex;
+            height: 100%;
+            position: relative;
+            width: 100%;
+        }
+
+        .timeline-segment {
+            flex: 1;
+            position: relative;
+            border-right: 1px solid #e5e7eb;
+        }
+
+        .timeline-segment.hour {
+            border-right: 2px solid #d1d5db;
+        }
+
+        .timeline-segment.past {
+            background: #fafafa;
+        }
+
+        .timeline-segment.current-hour {
+            background: #ede9fe;
+        }
+
+        .timeline-labels {
+            display: flex;
+            width: 100%;
+            margin-top: 5px;
+            position: relative;
+            height: 40px;
+        }
+
+        .timeline-label {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.75em;
+            color: #666;
+            transform: translateX(-50%);
+        }
+
+        .timeline-label.show {
+            display: flex;
+        }
+
+        .timeline-label.hide {
+            display: none;
+        }
+
+        .label-time {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .label-date {
+            font-size: 0.85em;
+            color: #999;
+        }
+
+        #powerOffPeriods {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .power-off-period {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            opacity: 0.8;
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .power-off-period.past {
+            opacity: 0.4;
+        }
+
+        .power-off-period:hover {
+            opacity: 1;
+            transform: scaleY(1.05);
+        }
+
+        .current-time-marker {
+            position: absolute;
+            top: 0;
+            width: 3px;
+            height: 100%;
+            background: #8b5cf6;
+            z-index: 10;
+            animation: blink 1s infinite;
+            pointer-events: none;
+        }
+
+        .current-time-marker::before {
+            content: 'ЗАРАЗ';
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #8b5cf6;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .current-time-marker::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -4px;
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 8px solid #8b5cf6;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .schedule-list {
+            margin-top: 20px;
+        }
+
+        .schedule-section {
+            margin-bottom: 20px;
+        }
+
+        .schedule-section-title {
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+        }
+
+        .schedule-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .schedule-item.past {
+            opacity: 0.6;
+        }
+
+        .schedule-item.active {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .schedule-item:hover {
+            background: #f3f4f6;
+            transform: translateX(5px);
+        }
+
+        .schedule-item-left {
+            flex: 1;
+        }
+
+        .schedule-queue {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .schedule-time {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .schedule-status {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .schedule-status.off {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .schedule-status.on {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .status-indicator {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .countdown {
+                text-align: center;
+            }
+
+            .timeline-label {
+                font-size: 0.65em;
+            }
+
+            .label-date {
+                font-size: 0.8em;
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+
+        .queue-selector-card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .queue-selector-label {
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        .queue-selector {
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .queue-selector select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1em;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+            color: #333;
+        }
+
+        .queue-selector select:hover {
+            border-color: #8b5cf6;
+        }
+
+        .queue-selector select:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        @media (max-width: 768px) {
+            .queue-selector-card {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .queue-selector {
+                width: 100%;
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ FiatLux - Графік відключення світла</h1>
+            <div class="current-time" id="currentTime"></div>
+            <div class="api-status disconnected" id="apiStatus">Підключення до сервера...</div>
+        </div>
+
+        <div id="errorContainer"></div>
+
+        <div class="status-card">
+            <div class="status-indicator">
+                <div class="status-label">
+                    <div class="status-icon" id="statusIcon">💡</div>
+                    <span id="statusText">Завантаження...</span>
+                </div>
+                <div class="countdown">
+                    <div class="countdown-label" id="countdownLabel">До відключення</div>
+                    <div class="countdown-time" id="countdownTime">--:--:--</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="queue-selector-card">
+            <div class="queue-selector-label">Обрати чергу:</div>
+            <div class="queue-selector">
+                <select id="queueSelector">
+                    <option value="">Все черги</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="timeline">
+            <div class="timeline-header">📅 Розписи відключень</div>
+            <div class="timeline-subheader">12 годин назад ← ЗАРАЗ → 24 години вперед</div>
+            <div class="timeline-container" id="timelineContainer">
+                <div class="timeline-hours" id="timelineHours"></div>
+                <div id="powerOffPeriods"></div>
+                <div class="current-time-marker" id="timeMarker"></div>
+            </div>
+            <div class="timeline-labels" id="timelineLabels"></div>
+
+            <div class="schedule-list" id="scheduleList"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        const QUEUE_STORAGE_KEY = 'selectedQueue';
+        let powerOffSchedule = [];
+        let allQueues = [];
+        let selectedQueue = '';
+        
+        // Завантажуємо вибрану чергу з localStorage
+        function loadSavedQueue() {
+            const saved = localStorage.getItem(QUEUE_STORAGE_KEY);
+            if (saved) {
+                selectedQueue = saved;
+            }
+        }
+        
+        // Зберігаємо вибрану чергу в localStorage
+        function saveSelectedQueue(queue) {
+            localStorage.setItem(QUEUE_STORAGE_KEY, queue);
+        }
+        let updateInterval = null;
+
+        async function fetchScheduleData() {
+            try {
+                const response = await fetch(`${API_BASE}/api/schedule/all`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                updateApiStatus(true);
+
+                if (!data.success || !data.data) {
+                    throw new Error('Некоректна структура відповіді');
+                }
+
+                powerOffSchedule = [];
+                const schedules = [];
+                if (data.data.current) schedules.push(data.data.current);
+                if (data.data.future) schedules.push(data.data.future);
+
+                // Розпаковуємо розписи в період відключень
+                schedules.forEach(schedule => {
+                    if (schedule.queues && Array.isArray(schedule.queues)) {
+                        const scheduleDate = new Date(schedule.date);
+                        schedule.queues.forEach(queue => {
+                            if (queue.timeSlots && Array.isArray(queue.timeSlots)) {
+                                queue.timeSlots.forEach(slot => {
+                                    const startDate = new Date(scheduleDate);
+                                    const [startH, startM] = slot.start.split(':').map(Number);
+                                    startDate.setHours(startH, startM, 0, 0);
+
+                                    const endDate = new Date(scheduleDate);
+                                    const [endH, endM] = slot.end.split(':').map(Number);
+                                    endDate.setHours(endH, endM, 0, 0);
+
+                                    // Якщо час закінчення менший за час початку, це наступна доба
+                                    if (endDate <= startDate) {
+                                        endDate.setDate(endDate.getDate() + 1);
+                                    }
+
+                                    powerOffSchedule.push({
+                                        start: startDate,
+                                        end: endDate,
+                                        queue: queue.queueNumber,
+                                        scheduleId: schedule.id
+                                    });
+                                });
+                            }
+                        });
+                    }
+                });
+
+                // Сортуємо за часом початку
+                powerOffSchedule.sort((a, b) => a.start - b.start);
+
+                // Визначаємо унікальні черги та заповнюємо selector
+                allQueues = [...new Set(powerOffSchedule.map(p => p.queue))].sort((a, b) => a - b);
+                populateQueueSelector();
+                
+                // Завантажуємо дбережену чергу і встановлюємо в dropdown
+                loadSavedQueue();
+                if (selectedQueue) {
+                    document.getElementById('queueSelector').value = selectedQueue;
+                }
+                
+                // Додаємо слухач для зміни черги
+                document.getElementById('queueSelector').addEventListener('change', (e) => {
+                    selectedQueue = e.target.value;
+                    saveSelectedQueue(selectedQueue);
+                    initializeTimeline();
+                    initializeScheduleList();
+                    updateStatus();
+                    updateTimeMarker();
+                });
+
+                initializeTimeline();
+                initializeScheduleList();
+                updateCurrentTime();
+                updateStatus();
+                updateTimeMarker();
+
+                // Очищуємо старий інтервал
+                if (updateInterval) clearInterval(updateInterval);
+
+                // Оновлюємо кожну секунду
+                updateInterval = setInterval(() => {
+                    updateCurrentTime();
+                    updateStatus();
+                    updateTimeMarker();
+                }, 1000);
+
+            } catch (error) {
+                console.error('Помилка завантаження даних:', error);
+                updateApiStatus(false);
+                showError(`Помилка при завантаженні розписів: ${error.message}`);
+                
+                // Спробуємо знову через 5 секунд
+                setTimeout(fetchScheduleData, 5000);
+            }
+        }
+
+        function updateApiStatus(connected) {
+            const apiStatus = document.getElementById('apiStatus');
+            if (connected) {
+                apiStatus.textContent = '✓ Підключено до сервера';
+                apiStatus.className = 'api-status connected';
+            } else {
+                apiStatus.textContent = '✗ Немає зв\'язку з сервером';
+                apiStatus.className = 'api-status disconnected';
+            }
+        }
+
+        function showError(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
+        }
+
+        function updateCurrentTime() {
+            const now = new Date();
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            };
+            document.getElementById('currentTime').textContent = 
+                now.toLocaleDateString('uk-UA', options);
+        }
+
+        function getFilteredSchedule() {
+            if (!selectedQueue) {
+                return powerOffSchedule;
+            }
+            // Konwertujemy selectedQueue na liczbę dla porównania
+            const queueNum = parseFloat(selectedQueue);
+            return powerOffSchedule.filter(period => period.queue === queueNum);
+        }
+
+        function populateQueueSelector() {
+            const selector = document.getElementById('queueSelector');
+            const currentValue = selector.value;
+            
+            // Очищуємо всі option крім першого (Все черги)
+            while (selector.options.length > 1) {
+                selector.remove(1);
+            }
+            
+            // Додаємо options для кожної черги
+            allQueues.forEach(queue => {
+                const option = document.createElement('option');
+                option.value = queue;
+                option.textContent = `Черга ${queue}`;
+                selector.appendChild(option);
+            });
+            
+            // Повертаємо попередню вибрану значення
+            selector.value = currentValue;
+        }
+
+        function isInOutagePeriod(checkTime) {
+            const filteredSchedule = getFilteredSchedule();
+            return filteredSchedule.some(period => 
+                checkTime >= period.start && checkTime < period.end
+            );
+        }
+
+        function getNextEvent() {
+            const now = new Date();
+            const isPowerOff = isInOutagePeriod(now);
+            const filteredSchedule = getFilteredSchedule();
+
+            if (isPowerOff) {
+                const currentPeriods = filteredSchedule.filter(period => 
+                    now >= period.start && now < period.end
+                );
+                if (currentPeriods.length > 0) {
+                    const nextEnd = Math.max(...currentPeriods.map(p => p.end));
+                    return {
+                        type: 'on',
+                        time: new Date(nextEnd)
+                    };
+                }
+            } else {
+                const futureOutages = filteredSchedule
+                    .filter(period => period.start > now)
+                    .sort((a, b) => a.start - b.start);
+                
+                if (futureOutages.length > 0) {
+                    return {
+                        type: 'off',
+                        time: futureOutages[0].start
+                    };
+                }
+            }
+            return null;
+        }
+
+        function updateStatus() {
+            const now = new Date();
+            const isPowerOff = isInOutagePeriod(now);
+            const statusIcon = document.getElementById('statusIcon');
+            const statusText = document.getElementById('statusText');
+            const countdownLabel = document.getElementById('countdownLabel');
+            const countdownTime = document.getElementById('countdownTime');
+
+            if (isPowerOff) {
+                statusIcon.className = 'status-icon power-off';
+                statusIcon.textContent = '🔌';
+                statusText.textContent = 'Світла немає';
+                countdownLabel.textContent = 'До появи світла';
+            } else {
+                statusIcon.className = 'status-icon power-on';
+                statusIcon.textContent = '💡';
+                statusText.textContent = 'Світло є';
+                countdownLabel.textContent = 'До наступного відключення';
+            }
+
+            const nextEvent = getNextEvent();
+            if (nextEvent) {
+                const timeDiff = nextEvent.time - now;
+                const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+                const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+
+                countdownTime.textContent = 
+                    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            } else {
+                countdownTime.textContent = '--:--:--';
+            }
+        }
+
+        function initializeTimeline() {
+            const now = new Date();
+            const startTime = new Date(now.getTime() - 12 * 60 * 60 * 1000);
+            const endTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+            const filteredSchedule = getFilteredSchedule();
+
+            const timelineHours = document.getElementById('timelineHours');
+            const powerOffPeriods = document.getElementById('powerOffPeriods');
+
+            timelineHours.innerHTML = '';
+            powerOffPeriods.innerHTML = '';
+
+            const totalHalfHours = 72;
+
+            for (let i = 0; i < totalHalfHours; i++) {
+                const time = new Date(startTime.getTime() + i * 30 * 60 * 1000);
+                const segment = document.createElement('div');
+                const isHour = time.getMinutes() === 0;
+                
+                segment.className = isHour ? 'timeline-segment hour' : 'timeline-segment';
+                segment.dataset.time = time.getTime();
+                segment.dataset.hour = time.getHours();
+                segment.dataset.minute = time.getMinutes();
+                segment.dataset.date = time.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
+                
+                if (time < now) {
+                    segment.classList.add('past');
+                }
+                
+                const currentHourStart = new Date(now);
+                currentHourStart.setMinutes(0, 0, 0);
+                if (isHour && time.getTime() === currentHourStart.getTime()) {
+                    segment.classList.add('current-hour');
+                }
+
+                timelineHours.appendChild(segment);
+            }
+
+            filteredSchedule.forEach(period => {
+                if (period.end > startTime && period.start < endTime) {
+                    const div = document.createElement('div');
+                    div.className = 'power-off-period';
+                    
+                    if (period.end <= now) {
+                        div.classList.add('past');
+                    }
+
+                    const periodStart = Math.max(period.start, startTime);
+                    const periodEnd = Math.min(period.end, endTime);
+
+                    const startOffset = (periodStart - startTime) / (1000 * 60 * 60);
+                    const duration = (periodEnd - periodStart) / (1000 * 60 * 60);
+
+                    const startPercent = (startOffset / 36) * 100;
+                    const widthPercent = (duration / 36) * 100;
+
+                    div.style.left = `${startPercent}%`;
+                    div.style.width = `${widthPercent}%`;
+                    powerOffPeriods.appendChild(div);
+                }
+            });
+
+            updateTimelineLabels();
+        }
+
+        function updateTimelineLabels() {
+            const container = document.getElementById('timelineContainer');
+            const labelsContainer = document.getElementById('timelineLabels');
+            const allSegments = document.querySelectorAll('.timeline-segment');
+            
+            labelsContainer.innerHTML = '';
+            
+            const containerWidth = container.offsetWidth;
+            const hourSegments = [];
+            allSegments.forEach((segment, index) => {
+                if (index % 2 === 0) {
+                    hourSegments.push({
+                        segment: segment,
+                        index: index
+                    });
+                }
+            });
+            
+            const segmentCount = hourSegments.length;
+            const segmentWidth = containerWidth / 72;
+            const minLabelDistance = 50;
+            
+            let step = 1;
+            if (segmentWidth * 2 < minLabelDistance) step = 2;
+            if (segmentWidth * 2 * 2 < minLabelDistance) step = 3;
+            if (segmentWidth * 2 * 3 < minLabelDistance) step = 4;
+            if (segmentWidth * 2 * 4 < minLabelDistance) step = 6;
+            
+            hourSegments.forEach((item, hourIndex) => {
+                const segment = item.segment;
+                const segmentIndex = item.index;
+                
+                if (hourIndex % step === 0 || hourIndex === 0 || hourIndex === segmentCount - 1) {
+                    const label = document.createElement('div');
+                    label.className = 'timeline-label show';
+                    
+                    const hour = segment.dataset.hour;
+                    const date = segment.dataset.date;
+                    
+                    const timeSpan = document.createElement('div');
+                    timeSpan.className = 'label-time';
+                    timeSpan.textContent = `${String(hour).padStart(2, '0')}:00`;
+                    
+                    label.appendChild(timeSpan);
+                    
+                    if (hour === '0' || hourIndex === 0 || hourIndex === segmentCount - 1) {
+                        const dateSpan = document.createElement('div');
+                        dateSpan.className = 'label-date';
+                        dateSpan.textContent = date;
+                        label.appendChild(dateSpan);
+                    }
+                    
+                    const position = (segmentIndex / 72) * 100;
+                    label.style.left = `${position}%`;
+                    
+                    labelsContainer.appendChild(label);
+                }
+            });
+        }
+
+        function updateTimeMarker() {
+            const now = new Date();
+            const startTime = new Date(now.getTime() - 12 * 60 * 60 * 1000);
+            const offset = (now - startTime) / (1000 * 60 * 60);
+            
+            const marker = document.getElementById('timeMarker');
+            const offsetPercent = (offset / 36) * 100;
+            marker.style.left = `${offsetPercent}%`;
+        }
+
+        function initializeScheduleList() {
+            const scheduleList = document.getElementById('scheduleList');
+            const now = new Date();
+            const filteredSchedule = getFilteredSchedule();
+
+            const past = [];
+            const current = [];
+            const upcoming = [];
+
+            filteredSchedule.forEach(period => {
+                const isPast = period.end <= now;
+                const isCurrent = now >= period.start && now < period.end;
+                const startTime = new Date(now.getTime() - 12 * 60 * 60 * 1000);
+                const endTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+                if (period.start >= startTime && period.start <= endTime) {
+                    if (isPast) {
+                        past.push(period);
+                    } else if (isCurrent) {
+                        current.push(period);
+                    } else {
+                        upcoming.push(period);
+                    }
+                }
+            });
+
+            function createScheduleItem(period, isActive = false, isPast = false) {
+                const item = document.createElement('div');
+                item.className = 'schedule-item';
+                if (isActive) item.classList.add('active');
+                if (isPast) item.classList.add('past');
+
+                const leftDiv = document.createElement('div');
+                leftDiv.className = 'schedule-item-left';
+                
+                const queueDiv = document.createElement('div');
+                queueDiv.className = 'schedule-queue';
+                queueDiv.textContent = `Черга ${period.queue}`;
+                
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'schedule-time';
+                timeDiv.textContent = `${period.start.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })} - ${period.end.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })} | ${period.start.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })}`;
+
+                leftDiv.appendChild(queueDiv);
+                leftDiv.appendChild(timeDiv);
+
+                const statusSpan = document.createElement('span');
+                statusSpan.className = 'schedule-status off';
+                statusSpan.textContent = isActive ? 'Зараз' : (isPast ? 'Минуло' : 'Перерва');
+
+                item.appendChild(leftDiv);
+                item.appendChild(statusSpan);
+                return item;
+            }
+
+            scheduleList.innerHTML = '';
+
+            if (current.length > 0) {
+                const section = document.createElement('div');
+                section.className = 'schedule-section';
+                const title = document.createElement('div');
+                title.className = 'schedule-section-title';
+                title.textContent = '🔴 Зараз немає світла';
+                section.appendChild(title);
+                current.forEach(period => {
+                    section.appendChild(createScheduleItem(period, true));
+                });
+                scheduleList.appendChild(section);
+            }
+
+            if (upcoming.length > 0) {
+                const section = document.createElement('div');
+                section.className = 'schedule-section';
+                const title = document.createElement('div');
+                title.className = 'schedule-section-title';
+                title.textContent = '📅 Наступні відключення';
+                section.appendChild(title);
+                upcoming.slice(0, 10).forEach(period => {
+                    section.appendChild(createScheduleItem(period));
+                });
+                scheduleList.appendChild(section);
+            }
+
+            if (current.length === 0 && upcoming.length === 0) {
+                const noData = document.createElement('div');
+                noData.className = 'no-data';
+                noData.textContent = 'На даний момент немає доступних розписів';
+                scheduleList.appendChild(noData);
+            }
+        }
+
+        // Оновлення при зміні розміру вікна
+        window.addEventListener('resize', () => {
+            updateTimelineLabels();
+        });
+
+        // Завантажуємо дані при завантаженні сторінки
+        fetchScheduleData();
+
+        // Оновлюємо дані кожні 30 секунд
+        setInterval(fetchScheduleData, 30000);
+    </script>
+</body>
+</html>
