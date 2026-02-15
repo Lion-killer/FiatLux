@@ -1238,31 +1238,24 @@
                 const segmentIndex = item.index;
                 const hour = segment.dataset.hour;
                 const isMidnight = hour === '0';
-                
-                // Завжди показуємо мітку на переході доби (00:00), першу та останню
-                if (hourIndex % step === 0 || hourIndex === 0 || hourIndex === segmentCount - 1 || isMidnight) {
+                // Показуємо мітку лише якщо вона потрапляє у step, першу або останню
+                if (hourIndex % step === 0 || hourIndex === 0 || hourIndex === segmentCount - 1) {
                     const label = document.createElement('div');
                     label.className = 'timeline-label show';
-                    
                     const date = segment.dataset.date;
-                    
                     const timeSpan = document.createElement('div');
                     timeSpan.className = 'label-time';
                     timeSpan.textContent = `${String(hour).padStart(2, '0')}:00`;
-                    
                     label.appendChild(timeSpan);
-                    
-                    // Написи дати тільки на переходах доби (00:00)
+                    // Дата тільки якщо це 00:00
                     if (isMidnight) {
                         const dateSpan = document.createElement('div');
                         dateSpan.className = 'label-date';
                         dateSpan.textContent = date;
                         label.appendChild(dateSpan);
                     }
-                    
                     const position = (segmentIndex / totalHalfHours) * 100;
                     label.style.left = `${position}%`;
-                    
                     labelsContainer.appendChild(label);
                 }
             });
