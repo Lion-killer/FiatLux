@@ -920,29 +920,41 @@
             const now = new Date();
             const startTime = new Date(now.getTime() - 12 * 60 * 60 * 1000); // 12 годин назад
             const filteredSchedule = getFilteredSchedule();
-            
-            // Кінець таймлайну — кінець останнього дня з даними, але мінімум now + 24 години
-            let endTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // за замовчуванням 24 години
-            
+
+            // За замовчуванням — 24 години вперед
+            let endTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
             if (filteredSchedule.length > 0) {
-                // Знаходимо найпізнішу дату серед усіх періодів
-                const maxScheduleTime = Math.max(...filteredSchedule.map(p => p.end.getTime()));
-                const maxDate = new Date(maxScheduleTime);
-                
-                // Початок наступного дня (00:00) — щоб не обрізати періоди до 23:59
-                const endOfMaxDay = new Date(maxDate);
-                endOfMaxDay.setHours(0, 0, 0, 0);
-                endOfMaxDay.setDate(endOfMaxDay.getDate() + 1);
-                
-                // Показуємо до кінця дня, якщо це більше ніж now + 24
-                if (endOfMaxDay.getTime() > endTime.getTime()) {
-                    endTime = endOfMaxDay;
+                // Знаходимо всі дати графіків (початок доби)
+                const scheduleDays = filteredSchedule.map(p => {
+                    const d = new Date(p.start);
+                    d.setHours(0, 0, 0, 0);
+                    return d.getTime();
+                });
+                // Знаходимо найпізніший день з графіком
+                const maxDay = Math.max(...scheduleDays);
+                // Якщо є графік на наступний день після сьогоднішнього — показуємо timeline до кінця цього дня
+                const today = new Date(now);
+                today.setHours(0, 0, 0, 0);
+                const nextDay = new Date(today);
+                nextDay.setDate(today.getDate() + 1);
+                if (scheduleDays.includes(nextDay.getTime())) {
+                    // Кінець наступного дня (00:00)
+                    const endOfNextDay = new Date(nextDay);
+                    endOfNextDay.setDate(endOfNextDay.getDate() + 1);
+                    endOfNextDay.setHours(0, 0, 0, 0);
+                    if (endOfNextDay.getTime() > endTime.getTime()) {
+                        endTime = endOfNextDay;
+                    }
+                } else {
+                    // Якщо немає графіка на наступний день — timeline тільки 24 години вперед
+                    endTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
                 }
             }
-            
+
             const totalHours = (endTime - startTime) / (1000 * 60 * 60);
             const totalHalfHours = Math.ceil(totalHours * 2);
-            
+
             return { startTime, endTime, totalHours, totalHalfHours };
         }
 
