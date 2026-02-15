@@ -920,16 +920,21 @@
             const startTime = new Date(now.getTime() - 12 * 60 * 60 * 1000); // 12 годин назад
             const filteredSchedule = getFilteredSchedule();
             
-            // Знаходимо максимальний час у графіках
+            // Кінець таймлайну — кінець останнього дня з даними, але мінімум now + 24 години
             let endTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // за замовчуванням 24 години
             
             if (filteredSchedule.length > 0) {
+                // Знаходимо найпізнішу дату серед усіх періодів
                 const maxScheduleTime = Math.max(...filteredSchedule.map(p => p.end.getTime()));
-                const hoursFromNow = (maxScheduleTime - now.getTime()) / (1000 * 60 * 60);
+                const maxDate = new Date(maxScheduleTime);
                 
-                // Якщо є дані більше ніж на 24 години - показуємо всі
-                if (hoursFromNow > 24) {
-                    endTime = new Date(maxScheduleTime);
+                // Кінець цього дня (23:59:59)
+                const endOfMaxDay = new Date(maxDate);
+                endOfMaxDay.setHours(23, 59, 59, 999);
+                
+                // Показуємо до кінця дня, якщо це більше ніж now + 24
+                if (endOfMaxDay.getTime() > endTime.getTime()) {
+                    endTime = endOfMaxDay;
                 }
             }
             
