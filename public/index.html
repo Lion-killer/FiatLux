@@ -1233,13 +1233,17 @@
             if (segmentWidth * 2 * 3 < minLabelDistance) step = 4;
             if (segmentWidth * 2 * 4 < minLabelDistance) step = 6;
             
+            const shownMidnights = new Set();
             hourSegments.forEach((item, hourIndex) => {
                 const segment = item.segment;
                 const segmentIndex = item.index;
                 const hour = segment.dataset.hour;
                 const isMidnight = hour === '0';
-                // Показуємо мітку лише якщо вона потрапляє у step, першу або останню
+                let showLabel = false;
                 if (hourIndex % step === 0 || hourIndex === 0 || hourIndex === segmentCount - 1) {
+                    showLabel = true;
+                }
+                if (showLabel) {
                     const label = document.createElement('div');
                     label.className = 'timeline-label show';
                     const date = segment.dataset.date;
@@ -1253,7 +1257,31 @@
                         dateSpan.className = 'label-date';
                         dateSpan.textContent = date;
                         label.appendChild(dateSpan);
+                        shownMidnights.add(segmentIndex);
                     }
+                    const position = (segmentIndex / totalHalfHours) * 100;
+                    label.style.left = `${position}%`;
+                    labelsContainer.appendChild(label);
+                }
+            });
+            // Додатково: якщо для 00:00 не було мітки (через step), додаємо тільки дату
+            hourSegments.forEach((item, hourIndex) => {
+                const segment = item.segment;
+                const segmentIndex = item.index;
+                const hour = segment.dataset.hour;
+                const isMidnight = hour === '0';
+                if (isMidnight && !shownMidnights.has(segmentIndex)) {
+                    const label = document.createElement('div');
+                    label.className = 'timeline-label show';
+                    const date = segment.dataset.date;
+                    const timeSpan = document.createElement('div');
+                    timeSpan.className = 'label-time';
+                    timeSpan.textContent = `${String(hour).padStart(2, '0')}:00`;
+                    label.appendChild(timeSpan);
+                    const dateSpan = document.createElement('div');
+                    dateSpan.className = 'label-date';
+                    dateSpan.textContent = date;
+                    label.appendChild(dateSpan);
                     const position = (segmentIndex / totalHalfHours) * 100;
                     label.style.left = `${position}%`;
                     labelsContainer.appendChild(label);
