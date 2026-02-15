@@ -426,9 +426,29 @@ function Deploy {
     }
     
     Write-INF "4. Setting up .env..."
-    # Create .env file on remote server (API_ID, API_HASH, SESSION_STRING налаштовуються через web інтерфейс)
-    $envContent = "CHANNEL_USERNAME=$($global:Config.Channel)\nPORT=$($global:Config.Port)\nHOST=0.0.0.0\nLOG_LEVEL=info"
-    SSH-Run "printf '$envContent\n' > /opt/fiatlux/.env" | Out-Null
+    # Зберігаємо існуючі API credentials (API_ID, API_HASH, SESSION_STRING налаштовуються через web інтерфейс)
+    # Якщо .env вже існує — оновлюємо тільки базові поля, зберігаючи API credentials
+    $envScript = @"
+if [ -f /opt/fiatlux/.env ]; then
+  # Зберегти існуючі API credentials
+  API_ID_VAL=`$(grep '^API_ID=' /opt/fiatlux/.env | cut -d= -f2-)
+  API_HASH_VAL=`$(grep '^API_HASH=' /opt/fiatlux/.env | cut -d= -f2-)
+  SESSION_VAL=`$(grep '^SESSION_STRING=' /opt/fiatlux/.env | cut -d= -f2-)
+fi
+# Записати базові налаштування
+printf 'CHANNEL_USERNAME=$($global:Config.Channel)\nPORT=$($global:Config.Port)\nHOST=0.0.0.0\nLOG_LEVEL=info\n' > /opt/fiatlux/.env
+# Додати збережені API credentials якщо вони є
+if [ -n "`$API_ID_VAL" ]; then
+  printf 'API_ID=%s\n' "`$API_ID_VAL" >> /opt/fiatlux/.env
+fi
+if [ -n "`$API_HASH_VAL" ]; then
+  printf 'API_HASH=%s\n' "`$API_HASH_VAL" >> /opt/fiatlux/.env
+fi
+if [ -n "`$SESSION_VAL" ]; then
+  printf 'SESSION_STRING=%s\n' "`$SESSION_VAL" >> /opt/fiatlux/.env
+fi
+"@
+    SSH-Run $envScript | Out-Null
     Write-OK "Done"
     
     Write-INF "5. Stopping containers..."

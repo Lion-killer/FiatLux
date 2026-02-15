@@ -353,9 +353,12 @@
             <div class="success-icon">✅</div>
             <h2 style="text-align: center; margin: 20px 0; color: #10b981;">Налаштування завершено!</h2>
             <div class="alert alert-success show">
-                <strong>Успішно!</strong> SESSION_STRING збережено. Сервіс готовий до роботи.
+                <strong>Успішно!</strong> SESSION_STRING збережено.
             </div>
-            <button class="btn btn-primary" onclick="window.location.href='/'">Перейти до головної сторінки</button>
+            <div id="restartStatus" style="text-align: center; margin: 20px 0;">
+                <span class="loading"></span> Перезапуск сервісу...
+            </div>
+            <button id="goMainBtn" class="btn btn-primary" style="display:none" onclick="window.location.href='/'">Перейти до головної сторінки</button>
         </div>
     </div>
 
@@ -527,7 +530,8 @@
                     if (data.data.success) {
                         // Success!
                         showAlert('Авторизація успішна!', 'success');
-                        setTimeout(() => goToStep('success'), 1000);
+                        goToStep('success');
+                        restartAndRedirect();
                     } else if (data.data.needsPassword) {
                         // Need 2FA password
                         document.getElementById('codeForm').style.display = 'none';
@@ -574,7 +578,8 @@
 
                 if (data.success && data.data.success) {
                     showAlert('Авторизація успішна!', 'success');
-                    setTimeout(() => goToStep('success'), 1000);
+                    goToStep('success');
+                    restartAndRedirect();
                 } else {
                     showAlert(data.error || 'Неправильний пароль');
                 }
@@ -585,6 +590,51 @@
                 submitBtn.innerHTML = 'Підтвердити';
             }
         });
+
+        // Перезапуск сервісу та автоматичний перехід на головну
+        async function restartAndRedirect() {
+            const statusEl = document.getElementById('restartStatus');
+            const goBtn = document.getElementById('goMainBtn');
+            
+            try {
+                await fetch(`${API_BASE}/api/setup/restart`, { method: 'POST' });
+            } catch (e) {
+                // Очікувано — сервер завершиться
+            }
+            
+            statusEl.innerHTML = '<span class="loading"></span> Очікування перезапуску...';
+            
+            // Чекаємо поки сервіс знову стане доступним (до 30 сек)
+            let attempts = 0;
+            const maxAttempts = 30;
+            const checkInterval = setInterval(async () => {
+                attempts++;
+                try {
+                    const resp = await fetch(`${API_BASE}/api/health`, { signal: AbortSignal.timeout(2000) });
+                    const health = await resp.json();
+                    if (health.telegramConnected) {
+                        clearInterval(checkInterval);
+                        statusEl.innerHTML = '✅ Сервіс перезапущено, Telegram підключено!';
+                        statusEl.style.color = '#10b981';
+                        goBtn.style.display = 'block';
+                        setTimeout(() => { window.location.href = '/'; }, 2000);
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(checkInterval);
+                        statusEl.innerHTML = '⚠️ Сервіс запущено, але Telegram ще підключається...';
+                        statusEl.style.color = '#f59e0b';
+                        goBtn.style.display = 'block';
+                    }
+                } catch (e) {
+                    // Сервіс ще не готовий
+                    if (attempts >= maxAttempts) {
+                        clearInterval(checkInterval);
+                        statusEl.innerHTML = '⚠️ Перезапуск може тривати довше. Спробуйте оновити сторінку.';
+                        statusEl.style.color = '#f59e0b';
+                        goBtn.style.display = 'block';
+                    }
+                }
+            }, 1000);
+        }
 
         // Check status on load
         checkSetupStatus();

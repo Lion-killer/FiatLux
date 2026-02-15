@@ -127,6 +127,21 @@ export class ApiServer {
       await this.handleAuthPassword(req, res);
     });
 
+    // Перезапуск сервісу після завершення setup (Docker перезапустить контейнер)
+    this.app.post('/api/setup/restart', (_req: Request, res: Response) => {
+      logger.info('Restart requested after setup completion');
+      res.json({
+        success: true,
+        data: { message: 'Service restarting...' },
+        timestamp: new Date().toISOString(),
+      });
+      // Даємо час відправити відповідь, потім завершуємо процес
+      setTimeout(() => {
+        logger.info('Restarting service to apply new credentials...');
+        process.exit(0);
+      }, 2000);
+    });
+
     // API info endpoint
     this.app.get('/api/info', (_req: Request, res: Response) => {
       res.json({
@@ -467,7 +482,7 @@ export class ApiServer {
 
       const response: ApiResponse = {
         success: true,
-        data: result,
+        data: { ...result, restartRequired: !!(result.success && result.sessionString) },
         timestamp: new Date().toISOString(),
       };
 
@@ -508,7 +523,7 @@ export class ApiServer {
 
       const response: ApiResponse = {
         success: true,
-        data: result,
+        data: { ...result, restartRequired: !!(result.success && result.sessionString) },
         timestamp: new Date().toISOString(),
       };
 
