@@ -275,7 +275,7 @@ docker-compose up -d
 ```
 
 ### Production
-Use `deploy-interactive.ps1` script for interactive deployment to remote server.
+Use `deploy.ps1` script for interactive deployment to remote server.
 
 ## Security Considerations
 
@@ -321,9 +321,9 @@ Use `deploy-interactive.ps1` script for interactive deployment to remote server.
 ## Contact & Documentation
 
 - **README.md**: General overview and quick start
-- **QUICKSTART.md**: Step-by-step setup guide
-- **WEB_SETUP.md**: Web-based Telegram authentication docs
-- **DEPLOY_INTERACTIVE.md**: Deployment script documentation
+- **docs/QUICKSTART.md**: Step-by-step setup guide
+- **docs/WEB_SETUP.md**: Web-based Telegram authentication docs
+- **docs/DEPLOY.md**: Complete deployment guide (deploy.ps1 + configuration)
 
 ## Version History
 
