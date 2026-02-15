@@ -1315,7 +1315,9 @@
             let minutes = Math.round((duration - hours) * 60);
             if (minutes === 60) { hours++; minutes = 0; }
             
-            tooltipTime.textContent = `${startTime.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })} - ${endTime.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}`;
+            // Формат дати: 17 лют.
+            const dateStr = startTime.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
+            tooltipTime.textContent = `${dateStr} ${startTime.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })} - ${endTime.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}`;
             
             let durationText = '';
             if (hours > 0) {
