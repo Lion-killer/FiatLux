@@ -14,6 +14,8 @@ class FiatLuxService {
   private envManager: EnvManager;
   private isShuttingDown = false;
   private isTelegramConnected = false;
+  private pollingInterval?: ReturnType<typeof setInterval>;
+  private static readonly POLLING_INTERVAL_MS = 5 * 60 * 1000; // 5 хвилин
 
   constructor() {
     this.dataManager = new DataManager();
@@ -71,6 +73,9 @@ class FiatLuxService {
       
       // Subscribe to new messages
       this.subscribeToNewMessages();
+      
+      // Запуск періодичного опитування (підстраховка для event handler)
+      this.startPolling();
       
       // Start API server
       this.apiServer.listen(config.server.port, config.server.host);
@@ -141,6 +146,34 @@ class FiatLuxService {
     });
   }
 
+  // Періодичне опитування каналу — підстраховка, якщо event handler не отримує оновлення
+  private startPolling(): void {
+    logger.info(`Polling every ${FiatLuxService.POLLING_INTERVAL_MS / 1000}s for new schedules`);
+    
+    this.pollingInterval = setInterval(async () => {
+      if (this.isShuttingDown || !this.telegramMonitor) return;
+      
+      try {
+        logger.debug('Polling for new messages...');
+        const messages = await this.telegramMonitor.getRecentMessages(20);
+        const schedules = ScheduleParser.parseMessages(messages);
+        
+        let newCount = 0;
+        for (const schedule of schedules) {
+          const isNew = await this.dataManager.saveSchedule(schedule);
+          if (isNew) newCount++;
+        }
+        
+        if (newCount > 0) {
+          logger.info(`Polling: found ${newCount} new schedule(s)`);
+          this.apiServer.updateLastMessageCheck();
+        }
+      } catch (error) {
+        logger.error('Polling error:', error);
+      }
+    }, FiatLuxService.POLLING_INTERVAL_MS);
+  }
+
   async shutdown(): Promise<void> {
     if (this.isShuttingDown) return;
     
@@ -148,6 +181,12 @@ class FiatLuxService {
     logger.info('=== Shutting down FiatLux Service ===');
     
     try {
+      // Зупинити polling
+      if (this.pollingInterval) {
+        clearInterval(this.pollingInterval);
+        this.pollingInterval = undefined;
+      }
+      
       // Disconnect from Telegram if connected
       if (this.telegramMonitor && this.isTelegramConnected) {
         await this.telegramMonitor.disconnect();

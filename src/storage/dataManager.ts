@@ -32,7 +32,7 @@ export class DataManager {
   /**
    * Add or update a schedule (in-memory)
    */
-  async saveSchedule(schedule: Schedule): Promise<void> {
+  async saveSchedule(schedule: Schedule): Promise<boolean> {
     // Check if schedule already exists
     const existingIndex = this.schedules.findIndex(s => s.id === schedule.id);
     
@@ -40,6 +40,7 @@ export class DataManager {
       // Update existing schedule
       this.schedules[existingIndex] = schedule;
       logger.info(`Updated schedule: ${schedule.id}`);
+      return false;
     } else {
       // Add new schedule
       this.schedules.push(schedule);
@@ -47,6 +48,7 @@ export class DataManager {
       
       // Archive older schedules
       this.archiveOlderSchedules(schedule);
+      return true;
     }
   }
 

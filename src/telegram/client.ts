@@ -88,26 +88,44 @@ export class TelegramChannelMonitor {
 
     this.messageHandler = handler;
 
-    this.client.addEventHandler(
-      async (event: NewMessageEvent) => {
-        const message = event.message;
-        
-        if (message instanceof Api.Message) {
-          logger.info(`New message received: ID ${message.id}`);
-          
-          // Check if message is from our target channel
-          const chatId = message.chatId?.toString();
-          logger.debug(`Message from chat: ${chatId}`);
-          
-          if (this.messageHandler) {
-            this.messageHandler(message);
-          }
-        }
-      },
-      new NewMessage({ chats: [config.telegram.channelUsername] })
-    );
-
-    logger.info(`Subscribed to new messages from ${config.telegram.channelUsername}`);
+    // Resolve entity спочатку для надійної фільтрації
+    this.client.getInputEntity(config.telegram.channelUsername)
+      .then((entity) => {
+        this.client.addEventHandler(
+          async (event: NewMessageEvent) => {
+            const message = event.message;
+            
+            if (message instanceof Api.Message) {
+              logger.info(`New message received from event handler: ID ${message.id}`);
+              
+              if (this.messageHandler) {
+                this.messageHandler(message);
+              }
+            }
+          },
+          new NewMessage({ chats: [entity] })
+        );
+        logger.info(`Subscribed to new messages from ${config.telegram.channelUsername} (resolved entity)`);
+      })
+      .catch((err) => {
+        // Fallback — підписка без фільтра по чату, фільтруємо вручну
+        logger.warn(`Could not resolve channel entity, subscribing without chat filter: ${err.message}`);
+        this.client.addEventHandler(
+          async (event: NewMessageEvent) => {
+            const message = event.message;
+            
+            if (message instanceof Api.Message) {
+              logger.info(`New message received: ID ${message.id} from chat ${message.chatId}`);
+              
+              if (this.messageHandler) {
+                this.messageHandler(message);
+              }
+            }
+          },
+          new NewMessage({})
+        );
+        logger.info('Subscribed to all new messages (fallback mode)');
+      });
   }
 
   async disconnect(): Promise<void> {
