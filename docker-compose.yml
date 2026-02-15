@@ -6,15 +6,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - API_ID=${API_ID:-}
-      - API_HASH=${API_HASH:-}
-      - SESSION_STRING=${SESSION_STRING:-}
-      - CHANNEL_USERNAME=${CHANNEL_USERNAME:-pat_cherkasyoblenergo}
       - PORT=8080
       - HOST=0.0.0.0
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - ./data:/app/data
       - ./.env:/app/.env  # Зберігає .env між перезапусками
-    env_file:
-      - .env
