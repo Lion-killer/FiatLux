@@ -1236,12 +1236,14 @@
             hourSegments.forEach((item, hourIndex) => {
                 const segment = item.segment;
                 const segmentIndex = item.index;
+                const hour = segment.dataset.hour;
+                const isMidnight = hour === '0';
                 
-                if (hourIndex % step === 0 || hourIndex === 0 || hourIndex === segmentCount - 1) {
+                // Завжди показуємо мітку на переході доби (00:00), першу та останню
+                if (hourIndex % step === 0 || hourIndex === 0 || hourIndex === segmentCount - 1 || isMidnight) {
                     const label = document.createElement('div');
                     label.className = 'timeline-label show';
                     
-                    const hour = segment.dataset.hour;
                     const date = segment.dataset.date;
                     
                     const timeSpan = document.createElement('div');
@@ -1250,7 +1252,8 @@
                     
                     label.appendChild(timeSpan);
                     
-                    if (hour === '0' || hourIndex === 0 || hourIndex === segmentCount - 1) {
+                    // Написи дати тільки на переходах доби (00:00)
+                    if (isMidnight) {
                         const dateSpan = document.createElement('div');
                         dateSpan.className = 'label-date';
                         dateSpan.textContent = date;
