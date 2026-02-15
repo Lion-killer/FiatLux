@@ -1016,7 +1016,8 @@
                 const firstScheduleDay = new Date(sortedDates[0]);
                 firstScheduleDay.setHours(0, 0, 0, 0);
                 const lastScheduleDay = new Date(sortedDates[sortedDates.length - 1]);
-                lastScheduleDay.setHours(23, 59, 59, 999);
+                lastScheduleDay.setDate(lastScheduleDay.getDate() + 1);
+                lastScheduleDay.setHours(0, 0, 0, 0);
 
                 // Сіра область до першого дня з графіками
                 if (startTime.getTime() < firstScheduleDay.getTime()) {
@@ -1117,7 +1118,8 @@
                 Array.from(scheduleDates).sort((a, b) => a - b).forEach(dayTime => {
                     const dayStart = new Date(dayTime);
                     const dayEnd = new Date(dayTime);
-                    dayEnd.setHours(23, 59, 59, 999);
+                    dayEnd.setDate(dayEnd.getDate() + 1);
+                    dayEnd.setHours(0, 0, 0, 0);
                     
                     // Обмежуємо добу видимим діапазоном timeline
                     const visibleDayStart = Math.max(dayStart.getTime(), startTime.getTime());
@@ -1274,8 +1276,9 @@
             const isPowerOn = event.target.dataset.powerOn === 'true';
             
             const duration = (endTime - startTime) / (1000 * 60 * 60);
-            const hours = Math.floor(duration);
-            const minutes = Math.round((duration - hours) * 60);
+            let hours = Math.floor(duration);
+            let minutes = Math.round((duration - hours) * 60);
+            if (minutes === 60) { hours++; minutes = 0; }
             
             tooltipTime.textContent = `${startTime.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })} - ${endTime.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}`;
             
