@@ -1,6 +1,7 @@
 # FiatLux Docker Support
 
-FROM node:18-alpine
+# --- Build stage ---
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
@@ -8,15 +9,27 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 
-# Install dependencies
-RUN npm install --omit=dev
+# Install ALL dependencies (including devDependencies for tsc)
+RUN npm install
 
 # Copy source code
 COPY src/ ./src/
-COPY public/ ./public/
 
 # Build TypeScript
 RUN npm run build
+
+# --- Production stage ---
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files and install production only
+COPY package*.json ./
+RUN npm install --omit=dev
+
+# Copy built output and public files from builder
+COPY --from=builder /app/dist ./dist
+COPY public/ ./public/
 
 # Create data directory
 RUN mkdir -p /app/data
