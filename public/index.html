@@ -1254,7 +1254,7 @@
                         label.appendChild(dateSpan);
                     }
                     
-                    const position = (segmentIndex / 72) * 100;
+                    const position = (segmentIndex / totalHalfHours) * 100;
                     label.style.left = `${position}%`;
                     
                     labelsContainer.appendChild(label);
