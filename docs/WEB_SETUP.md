@@ -223,7 +223,7 @@ volumes:
 
 Перевірте що сервіс запущений:
 ```bash
-curl http://localhost:3000/api/setup/status
+curl http://localhost:8080/api/setup/status
 ```
 
 ### Помилка "Invalid credentials"
@@ -261,5 +261,5 @@ docker-compose exec fiatlux ls -la /app/.env
 
 Для примусового відкриття setup сторінки:
 ```
-http://localhost:3000/setup.html
+http://localhost:8080/setup.html
 ```

@@ -66,7 +66,7 @@ const config: Config = {
     channelUsername: getEnvVar('CHANNEL_USERNAME', false) || 'pat_cherkasyoblenergo',
   },
   server: {
-    port: getEnvNumber('PORT', 3000),
+    port: getEnvNumber('PORT', 8080),
     host: getEnvVar('HOST', false) || '0.0.0.0',
   },
   storage: {

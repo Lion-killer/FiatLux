@@ -63,7 +63,7 @@ SESSION_STRING=
 CHANNEL_USERNAME=pat_cherkasyoblenergo
 
 # API Server configuration
-PORT=3000
+PORT=8080
 HOST=0.0.0.0
 
 # Data storage path

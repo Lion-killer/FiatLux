@@ -238,13 +238,13 @@ if (endHour === 0 && endMinute === 0) {
 ### Test API Endpoints
 ```bash
 # Health check
-curl http://localhost:3000/api/health
+curl http://localhost:8080/api/health
 
 # Get all schedules
-curl http://localhost:3000/api/schedule/all
+curl http://localhost:8080/api/schedule/all
 
 # Setup status
-curl http://localhost:3000/api/setup/status
+curl http://localhost:8080/api/setup/status
 ```
 
 ## Environment Variables
@@ -256,7 +256,7 @@ Required for Normal Mode:
 - `CHANNEL_USERNAME` - Telegram channel to monitor (e.g., `pat_cherkasyoblenergo`)
 
 Optional:
-- `PORT` - API server port (default: 3000)
+- `PORT` - API server port (default: 8080)
 - `HOST` - API server host (default: 0.0.0.0)
 - `LOG_LEVEL` - Logging level (default: info)
 

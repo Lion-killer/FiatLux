@@ -18,7 +18,7 @@ API_ID=12345678
 API_HASH=your_api_hash_here
 SESSION_STRING=
 CHANNEL_USERNAME=cherkasyoblenergo
-PORT=3000
+PORT=8080
 ```
 
 ## 3. Отримання Telegram API credentials
@@ -53,19 +53,19 @@ npm start
 
 ```powershell
 # Перевірка здоров'я сервісу
-curl http://localhost:3000/api/health
+curl http://localhost:8080/api/health
 
 # Отримання поточного графіка
-curl http://localhost:3000/api/schedule/current
+curl http://localhost:8080/api/schedule/current
 
 # Отримання всіх графіків
-curl http://localhost:3000/api/schedule/all
+curl http://localhost:8080/api/schedule/all
 ```
 
 ## 7. Примусове оновлення даних
 
 ```powershell
-curl -X POST http://localhost:3000/api/refresh
+curl -X POST http://localhost:8080/api/refresh
 ```
 
 ## Структура проєкту після встановлення

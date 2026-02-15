@@ -15,7 +15,7 @@ $colors = @{
 # Global Config
 $global:Config = @{
     Server = ""
-    Port = 3000
+    Port = 8080
     User = "root"
     RepoUrl = "https://github.com/Lion-killer/FiatLux.git"
     Channel = "pat_cherkasyoblenergo"

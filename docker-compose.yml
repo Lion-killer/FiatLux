@@ -4,13 +4,13 @@ services:
     container_name: fiatlux-service
     restart: unless-stopped
     ports:
-      - "8080:3000"
+      - "8080:8080"
     environment:
       - API_ID=${API_ID:-}
       - API_HASH=${API_HASH:-}
       - SESSION_STRING=${SESSION_STRING:-}
       - CHANNEL_USERNAME=${CHANNEL_USERNAME:-pat_cherkasyoblenergo}
-      - PORT=3000
+      - PORT=8080
       - HOST=0.0.0.0
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:

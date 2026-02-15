@@ -22,7 +22,7 @@ RUN npm run build
 RUN mkdir -p /app/data
 
 # Expose API port
-EXPOSE 3000
+EXPOSE 8080
 
 # Start the service
 CMD ["npm", "start"]

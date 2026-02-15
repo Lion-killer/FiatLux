@@ -66,7 +66,7 @@
 DEPLOY_SERVER=192.168.1.100        # IP сервера
 DEPLOY_USER=ubuntu                  # SSH користувач
 DEPLOY_PASSWORD=your_password       # Пароль (тимчасово)
-DEPLOY_PORT=3000                    # Порт застосунку
+DEPLOY_PORT=8080                    # Порт застосунку
 
 # Repository
 DEPLOY_REPO_URL=https://github.com/your-username/FiatLux.git
@@ -170,7 +170,7 @@ D. Delete Container         - Видалити контейнер
 - IP адреса сервера
 - SSH користувач
 - SSH пароль (тимчасово)
-- Порт застосунку (за замовчуванням 3000)
+- Порт застосунку (за замовчуванням 8080)
 - Git repository URL
 - Telegram API credentials
 
@@ -250,7 +250,7 @@ D. Delete Container         - Видалити контейнер
 ```bash
 # На сервері: налаштуйте firewall
 sudo ufw allow ssh
-sudo ufw allow 3000/tcp
+sudo ufw allow 8080/tcp
 sudo ufw enable
 ```
 
@@ -270,7 +270,7 @@ server {
     server_name your-domain.com;
     
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -460,7 +460,7 @@ docker-compose down -v
 #   Server: 192.168.1.100
 #   User: ubuntu
 #   Password: your_temp_password
-#   Port: 3000
+#   Port: 8080
 #   Repo: https://github.com/Lion-killer/FiatLux.git
 #   API_ID: 12345678
 #   API_HASH: your_api_hash
@@ -481,7 +481,7 @@ docker-compose down -v
 # ✅ Deploy completed successfully!
 
 # ===== КРОК 5: Перевірка =====
-# Відкрийте браузер: http://192.168.1.100:3000
+# Відкрийте браузер: http://192.168.1.100:8080
 # 🎉 FiatLux працює!
 
 # ===== КРОК 6: Перегляд логів =====
