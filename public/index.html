@@ -1233,17 +1233,14 @@
             if (segmentWidth * 2 * 3 < minLabelDistance) step = 4;
             if (segmentWidth * 2 * 4 < minLabelDistance) step = 6;
             
-            const shownMidnights = new Set();
+            // Основні мітки часу (step)
+            const labelPositions = new Set();
             hourSegments.forEach((item, hourIndex) => {
                 const segment = item.segment;
                 const segmentIndex = item.index;
                 const hour = segment.dataset.hour;
                 const isMidnight = hour === '0';
-                let showLabel = false;
                 if (hourIndex % step === 0 || hourIndex === 0 || hourIndex === segmentCount - 1) {
-                    showLabel = true;
-                }
-                if (showLabel) {
                     const label = document.createElement('div');
                     label.className = 'timeline-label show';
                     const date = segment.dataset.date;
@@ -1251,33 +1248,29 @@
                     timeSpan.className = 'label-time';
                     timeSpan.textContent = `${String(hour).padStart(2, '0')}:00`;
                     label.appendChild(timeSpan);
-                    // Дата тільки якщо це 00:00
+                    // Якщо це 00:00 — додаємо дату під часом
                     if (isMidnight) {
                         const dateSpan = document.createElement('div');
                         dateSpan.className = 'label-date';
                         dateSpan.textContent = date;
                         label.appendChild(dateSpan);
-                        shownMidnights.add(segmentIndex);
                     }
                     const position = (segmentIndex / totalHalfHours) * 100;
                     label.style.left = `${position}%`;
                     labelsContainer.appendChild(label);
+                    if (isMidnight) labelPositions.add(segmentIndex);
                 }
             });
-            // Додатково: якщо для 00:00 не було мітки (через step), додаємо тільки дату
+            // Додаємо тільки дату (без часу) у місцях переходу доби, якщо немає мітки часу 00:00
             hourSegments.forEach((item, hourIndex) => {
                 const segment = item.segment;
                 const segmentIndex = item.index;
                 const hour = segment.dataset.hour;
                 const isMidnight = hour === '0';
-                if (isMidnight && !shownMidnights.has(segmentIndex)) {
+                if (isMidnight && !labelPositions.has(segmentIndex)) {
                     const label = document.createElement('div');
                     label.className = 'timeline-label show';
                     const date = segment.dataset.date;
-                    const timeSpan = document.createElement('div');
-                    timeSpan.className = 'label-time';
-                    timeSpan.textContent = `${String(hour).padStart(2, '0')}:00`;
-                    label.appendChild(timeSpan);
                     const dateSpan = document.createElement('div');
                     dateSpan.className = 'label-date';
                     dateSpan.textContent = date;
