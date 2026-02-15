@@ -928,9 +928,10 @@
                 const maxScheduleTime = Math.max(...filteredSchedule.map(p => p.end.getTime()));
                 const maxDate = new Date(maxScheduleTime);
                 
-                // Кінець цього дня (23:59:59)
+                // Початок наступного дня (00:00) — щоб не обрізати періоди до 23:59
                 const endOfMaxDay = new Date(maxDate);
-                endOfMaxDay.setHours(23, 59, 59, 999);
+                endOfMaxDay.setHours(0, 0, 0, 0);
+                endOfMaxDay.setDate(endOfMaxDay.getDate() + 1);
                 
                 // Показуємо до кінця дня, якщо це більше ніж now + 24
                 if (endOfMaxDay.getTime() > endTime.getTime()) {
