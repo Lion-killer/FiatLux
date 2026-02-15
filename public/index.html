@@ -637,6 +637,24 @@
         let allQueues = [];
         let selectedQueue = '';
         
+        // Перевіряємо чи налаштовано SESSION_STRING
+        async function checkSetupRequired() {
+            try {
+                const response = await fetch(`${API_BASE}/api/setup/status`);
+                const data = await response.json();
+                
+                if (data.success && !data.data.configured) {
+                    // Redirect to setup page
+                    window.location.href = '/setup.html';
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error('Failed to check setup status:', error);
+                return false;
+            }
+        }
+        
         // Завантажуємо вибрану чергу з localStorage
         function loadSavedQueue() {
             const saved = localStorage.getItem(QUEUE_STORAGE_KEY);
@@ -670,7 +688,7 @@
                 if (data.data.current) schedules.push(data.data.current);
                 if (data.data.future) schedules.push(data.data.future);
 
-                // Розпаковуємо розписи в період відключень
+                // Розпаковуємо розклади в період відключень
                 schedules.forEach(schedule => {
                     if (schedule.queues && Array.isArray(schedule.queues)) {
                         // Парсимо дату в локальному часовому поясі
@@ -749,7 +767,7 @@
             } catch (error) {
                 console.error('Помилка завантаження даних:', error);
                 updateApiStatus(false);
-                showError(`Помилка при завантаженні розписів: ${error.message}`);
+                showError(`Помилка при завантаженні розкладів: ${error.message}`);
                 
                 // Спробуємо знову через 5 секунд
                 setTimeout(fetchScheduleData, 5000);
@@ -1395,7 +1413,7 @@
             if (current.length === 0 && upcoming.length === 0) {
                 const noData = document.createElement('div');
                 noData.className = 'no-data';
-                noData.textContent = 'На даний момент немає доступних розписів';
+                noData.textContent = 'На даний момент немає доступних розкладів';
                 scheduleList.appendChild(noData);
             }
         }
@@ -1406,10 +1424,14 @@
         });
 
         // Завантажуємо дані при завантаженні сторінки
-        fetchScheduleData();
-
-        // Оновлюємо дані кожні 30 секунд
-        setInterval(fetchScheduleData, 30000);
+        (async () => {
+            const needsSetup = await checkSetupRequired();
+            if (!needsSetup) {
+                fetchScheduleData();
+                // Оновлюємо дані кожні 30 секунд
+                setInterval(fetchScheduleData, 30000);
+            }
+        })();
     </script>
 </body>
 </html>

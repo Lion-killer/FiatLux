@@ -8,14 +8,15 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - API_ID=${API_ID}
-      - API_HASH=${API_HASH}
-      - SESSION_STRING=${SESSION_STRING}
+      - API_ID=${API_ID:-}
+      - API_HASH=${API_HASH:-}
+      - SESSION_STRING=${SESSION_STRING:-}
       - CHANNEL_USERNAME=${CHANNEL_USERNAME:-pat_cherkasyoblenergo}
       - PORT=3000
       - HOST=0.0.0.0
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - ./data:/app/data
+      - ./.env:/app/.env  # Зберігає .env між перезапусками
     env_file:
       - .env

@@ -60,10 +60,10 @@ function getEnvNumber(name: string, defaultValue?: number): number {
 
 const config: Config = {
   telegram: {
-    apiId: getEnvNumber('API_ID'),
-    apiHash: getEnvVar('API_HASH'),
+    apiId: getEnvNumber('API_ID', 0), // Default 0 if not set
+    apiHash: getEnvVar('API_HASH', false),
     sessionString: getEnvVar('SESSION_STRING', false),
-    channelUsername: getEnvVar('CHANNEL_USERNAME', false) || 'cherkasyoblenergo',
+    channelUsername: getEnvVar('CHANNEL_USERNAME', false) || 'pat_cherkasyoblenergo',
   },
   server: {
     port: getEnvNumber('PORT', 3000),

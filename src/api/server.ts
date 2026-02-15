@@ -5,11 +5,15 @@ import { DataManager } from '../storage/dataManager';
 import { TelegramChannelMonitor } from '../telegram/client';
 import { ScheduleParser } from '../parsers/scheduleParser';
 import { logger } from '../utils/logger';
+import { EnvManager } from '../utils/envManager';
+import { TelegramAuthManager } from '../telegram/authManager';
 
 export class ApiServer {
   private app: express.Application;
   private dataManager: DataManager;
   private telegramMonitor: TelegramChannelMonitor;
+  private envManager: EnvManager;
+  private authManager: TelegramAuthManager;
   private startTime: number = Date.now();
   private lastMessageCheck?: string;
 
@@ -17,9 +21,14 @@ export class ApiServer {
     this.app = express();
     this.dataManager = dataManager;
     this.telegramMonitor = telegramMonitor;
+    this.envManager = new EnvManager();
+    this.authManager = new TelegramAuthManager();
     this.setupMiddleware();
     this.setupRoutes();
     this.setupErrorHandling();
+    
+    // Clean up old auth sessions every 5 minutes
+    setInterval(() => this.authManager.cleanupOldSessions(), 5 * 60 * 1000);
   }
 
   private setupMiddleware(): void {
@@ -95,6 +104,27 @@ export class ApiServer {
         todayDetected: todayStr,
         tomorrowDetected: tomorrowStr,
       });
+    });
+
+    // Setup endpoints
+    this.app.get('/api/setup/status', async (req: Request, res: Response) => {
+      await this.handleSetupStatus(req, res);
+    });
+
+    this.app.post('/api/setup/credentials', async (req: Request, res: Response) => {
+      await this.handleSaveCredentials(req, res);
+    });
+
+    this.app.post('/api/setup/auth/start', async (req: Request, res: Response) => {
+      await this.handleAuthStart(req, res);
+    });
+
+    this.app.post('/api/setup/auth/code', async (req: Request, res: Response) => {
+      await this.handleAuthCode(req, res);
+    });
+
+    this.app.post('/api/setup/auth/password', async (req: Request, res: Response) => {
+      await this.handleAuthPassword(req, res);
     });
 
     // API info endpoint
@@ -281,6 +311,211 @@ export class ApiServer {
     } catch (error) {
       const err = error as Error;
       logger.error('Refresh error:', err);
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  private async handleSetupStatus(_req: Request, res: Response): Promise<void> {
+    try {
+      const hasApiCredentials = this.envManager.hasApiCredentials();
+      const hasSession = !!this.envManager.getVariable('SESSION_STRING');
+      const isConfigured = this.envManager.hasRequiredCredentials();
+
+      const response: ApiResponse = {
+        success: true,
+        data: {
+          configured: isConfigured,
+          hasApiCredentials,
+          hasSession,
+          apiId: hasApiCredentials ? this.envManager.getVariable('API_ID') : undefined,
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      res.json(response);
+    } catch (error) {
+      const err = error as Error;
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  private async handleSaveCredentials(req: Request, res: Response): Promise<void> {
+    try {
+      const { apiId, apiHash } = req.body;
+
+      if (!apiId || !apiHash) {
+        res.status(400).json({
+          success: false,
+          error: 'API_ID and API_HASH are required',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Validate API_ID is a number
+      const apiIdNum = parseInt(apiId, 10);
+      if (isNaN(apiIdNum)) {
+        res.status(400).json({
+          success: false,
+          error: 'API_ID must be a number',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Save to .env
+      this.envManager.updateVariables({
+        API_ID: apiId,
+        API_HASH: apiHash,
+      });
+
+      logger.info('Telegram API credentials saved');
+
+      const response: ApiResponse = {
+        success: true,
+        data: { message: 'Credentials saved successfully' },
+        timestamp: new Date().toISOString(),
+      };
+
+      res.json(response);
+    } catch (error) {
+      const err = error as Error;
+      logger.error('Save credentials error:', err);
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  private async handleAuthStart(req: Request, res: Response): Promise<void> {
+    try {
+      const { phoneNumber } = req.body;
+
+      if (!phoneNumber) {
+        res.status(400).json({
+          success: false,
+          error: 'Phone number is required',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const apiId = parseInt(this.envManager.getVariable('API_ID') || '', 10);
+      const apiHash = this.envManager.getVariable('API_HASH') || '';
+
+      if (!apiId || !apiHash) {
+        res.status(400).json({
+          success: false,
+          error: 'API credentials not configured',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const result = await this.authManager.startAuth(apiId, apiHash, phoneNumber);
+
+      const response: ApiResponse = {
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      };
+
+      res.json(response);
+    } catch (error) {
+      const err = error as Error;
+      logger.error('Auth start error:', err);
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  private async handleAuthCode(req: Request, res: Response): Promise<void> {
+    try {
+      const { sessionId, code } = req.body;
+
+      if (!sessionId || !code) {
+        res.status(400).json({
+          success: false,
+          error: 'Session ID and code are required',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const result = await this.authManager.submitCode(sessionId, code);
+
+      if (result.success && result.sessionString) {
+        // Save session string to .env
+        this.envManager.updateVariables({
+          SESSION_STRING: result.sessionString,
+        });
+        logger.info('Session string saved successfully');
+      }
+
+      const response: ApiResponse = {
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      };
+
+      res.json(response);
+    } catch (error) {
+      const err = error as Error;
+      logger.error('Auth code error:', err);
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  private async handleAuthPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const { sessionId, password } = req.body;
+
+      if (!sessionId || !password) {
+        res.status(400).json({
+          success: false,
+          error: 'Session ID and password are required',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const result = await this.authManager.submitPassword(sessionId, password);
+
+      if (result.success && result.sessionString) {
+        // Save session string to .env
+        this.envManager.updateVariables({
+          SESSION_STRING: result.sessionString,
+        });
+        logger.info('Session string saved successfully (with 2FA)');
+      }
+
+      const response: ApiResponse = {
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      };
+
+      res.json(response);
+    } catch (error) {
+      const err = error as Error;
+      logger.error('Auth password error:', err);
       res.status(500).json({
         success: false,
         error: err.message,
