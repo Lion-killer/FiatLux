@@ -222,9 +222,12 @@ async function main() {
     service.shutdown();
   });
   
-  process.on('unhandledRejection', (reason, promise) => {
-    logger.error('Unhandled rejection at:', promise, 'reason:', reason);
-    service.shutdown();
+  process.on('unhandledRejection', (reason, _promise) => {
+    // Логуємо але НЕ зупиняємо сервіс — GramJS може генерувати unhandled rejections
+    const message = reason instanceof Error 
+      ? `${reason.message}\n${reason.stack}` 
+      : JSON.stringify(reason, null, 2);
+    logger.error(`Unhandled rejection: ${message}`);
   });
   
   // Start the service
