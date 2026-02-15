@@ -72,6 +72,7 @@ docs/
 - **User-facing text**: Ukrainian (УКР)
 - **Code**: English (variable names, function names)
 - **Logs**: Ukrainian for user messages, English for technical details
+- **Commit messages**: Ukrainian (УКР)
 
 Example:
 ```typescript
