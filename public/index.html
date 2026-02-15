@@ -226,6 +226,7 @@
         .label-date {
             font-size: 0.85em;
             color: #999;
+            margin-top: 2px;
         }
 
         #noDataPeriods {
@@ -1270,6 +1271,11 @@
                 if (isMidnight && !labelPositions.has(segmentIndex)) {
                     const label = document.createElement('div');
                     label.className = 'timeline-label show';
+                    // Додаємо порожній label-time для вирівнювання
+                    const timeSpan = document.createElement('div');
+                    timeSpan.className = 'label-time';
+                    timeSpan.innerHTML = '&nbsp;';
+                    label.appendChild(timeSpan);
                     const date = segment.dataset.date;
                     const dateSpan = document.createElement('div');
                     dateSpan.className = 'label-date';
