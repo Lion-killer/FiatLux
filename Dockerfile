@@ -9,10 +9,11 @@ COPY package*.json ./
 COPY tsconfig.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm install --omit=dev
 
 # Copy source code
 COPY src/ ./src/
+COPY public/ ./public/
 
 # Build TypeScript
 RUN npm run build
