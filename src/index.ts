@@ -39,68 +39,72 @@ class FiatLuxService {
     try {
       // Initialize data storage
       await this.dataManager.initialize();
-      
+
       // Check if Telegram credentials are configured
       const hasCredentials = this.envManager.hasRequiredCredentials();
-      
+
       if (!hasCredentials) {
         logger.info('');
         logger.info('⚙️  Telegram credentials not configured');
         logger.info('🌐 Starting web interface for initial setup');
         logger.info(`📍 Open http://localhost:${config.server.port}/setup.html to configure`);
         logger.info('');
-        
+
         // Start API server only
         this.apiServer.listen(config.server.port, config.server.host);
         logger.info('=== FiatLux Service Started (Setup Mode) ===');
         return;
       }
-      
+
       // Credentials exist, try to connect to Telegram
       logger.info(`Monitoring channel: ${config.telegram.channelUsername}`);
-      
+
       this.telegramMonitor = new TelegramChannelMonitor();
-      
+
       // Update API server with real monitor
       (this.apiServer as any).telegramMonitor = this.telegramMonitor;
-      
+
       // Connect to Telegram
-      await this.telegramMonitor.connect();
-      this.isTelegramConnected = true;
-      
+      try {
+        await this.telegramMonitor.connect();
+        this.isTelegramConnected = true;
+      } catch (error) {
+        // Перевіряємо чи SESSION_STRING невалідний
+        if (
+          !config.telegram.sessionString ||
+          typeof error === 'object' && error && error.message && error.message.includes('SESSION_STRING')
+        ) {
+          logger.warn('❌ SESSION_STRING невалідний або авторизація втрачена');
+          logger.warn('Перемикаємося у режим налаштування (setup mode)');
+          logger.info(`📍 Open http://localhost:${config.server.port}/setup.html to re-authenticate`);
+          this.apiServer.listen(config.server.port, config.server.host);
+          logger.info('=== FiatLux Service Started (Setup Mode) ===');
+          return;
+        } else {
+          logger.error('Telegram connection failed:', error);
+          // If Telegram connection failed but we have API server, still run in limited mode
+          this.apiServer.listen(config.server.port, config.server.host);
+          logger.info('=== FiatLux Service Started (Limited Mode) ===');
+          return;
+        }
+      }
+
       // Load recent messages and parse them
       await this.loadRecentSchedules();
-      
+
       // Subscribe to new messages
       this.subscribeToNewMessages();
-      
+
       // Запуск періодичного опитування (підстраховка для event handler)
       this.startPolling();
-      
+
       // Start API server
       this.apiServer.listen(config.server.port, config.server.host);
-      
+
       logger.info('=== FiatLux Service Started Successfully ===');
     } catch (error) {
       logger.error('Failed to initialize service:', error);
-      
-      // If Telegram connection failed but we have API server, still run in limited mode
-      if (!this.isTelegramConnected) {
-        logger.warn('');
-        logger.warn('⚠️  Telegram connection failed, but API server will continue running');
-        logger.warn('🌐 You can reconfigure credentials at /setup.html');
-        logger.warn('');
-        
-        try {
-          this.apiServer.listen(config.server.port, config.server.host);
-          logger.info('=== FiatLux Service Started (Limited Mode) ===');
-        } catch (apiError) {
-          logger.error('Failed to start API server:', apiError);
-          throw apiError;
-        }
-      } else {
-        throw error;
-      }
+      throw error;
     }
   }
 
