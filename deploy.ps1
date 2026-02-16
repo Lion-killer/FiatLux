@@ -451,10 +451,7 @@ function Deploy {
     # Використовуємо Here-String для чистоти коду
     $bashScript = @"
 cd /opt/fiatlux
-if [ -d .env ]; then 
-    echo 'Removing accidental directory .env'
-    rm -rf .env
-fi
+if [ -d .env ]; then echo 'Removing accidental directory .env' && rm -rf .env; fi
 API_ID_VAL=`$(grep '^API_ID=' .env 2>/dev/null | cut -d= -f2- || echo '')
 API_HASH_VAL=`$(grep '^API_HASH=' .env 2>/dev/null | cut -d= -f2- || echo '')
 SESSION_VAL=`$(grep '^SESSION_STRING=' .env 2>/dev/null | cut -d= -f2- || echo '')
@@ -462,8 +459,7 @@ printf 'CHANNEL_USERNAME=$($global:Config.Channel)\nPORT=$($global:Config.Port)\
 if [ -n "`$API_ID_VAL" ]; then printf 'API_ID=%s\n' "`$API_ID_VAL" >> .env; fi
 if [ -n "`$API_HASH_VAL" ]; then printf 'API_HASH=%s\n' "`$API_HASH_VAL" >> .env; fi
 if [ -n "`$SESSION_VAL" ]; then printf 'SESSION_STRING=%s\n' "`$SESSION_VAL" >> .env; fi
-ls -ld .env
-file .env 2>/dev/null || echo 'file command not found'
+ls -ld .env && file .env 2>/dev/null || echo 'Done'
 "@
 
     # Перетворюємо в один рядок для SSH-Run (замінюємо переноси на ;)
