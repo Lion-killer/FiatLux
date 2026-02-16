@@ -97,7 +97,8 @@ export class TelegramChannelMonitor {
             const message = event.message;
 
             if (message instanceof Api.Message) {
-              logger.info(`New message received from event handler: ID ${message.id}`);
+              const preview = message.message ? message.message.substring(0, 100).replace(/\n/g, ' ') : '(no text)';
+              logger.info(`New message received from event handler: ID ${message.id}. Text preview: "${preview}..."`);
 
               if (this.messageHandler) {
                 this.messageHandler(message);
@@ -116,7 +117,8 @@ export class TelegramChannelMonitor {
             const message = event.message;
 
             if (message instanceof Api.Message) {
-              logger.info(`New message received: ID ${message.id} from chat ${message.chatId}`);
+              const preview = message.message ? message.message.substring(0, 100).replace(/\n/g, ' ') : '(no text)';
+              logger.info(`New message received: ID ${message.id} from chat ${message.chatId}. Text preview: "${preview}..."`);
 
               if (this.messageHandler) {
                 this.messageHandler(message);

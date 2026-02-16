@@ -332,7 +332,7 @@ function Show-Menu {
     Write-Host "K. Setup SSH Keys (Recommended)" -ForegroundColor $colors.Success
     Write-Host "4. Deploy"
     Write-Host "5. Check Status"
-    Write-Host "6. Update Code"
+    Write-Host "6. Start Service" -ForegroundColor $colors.Success
     Write-Host "7. Stop Service"
     Write-Host "8. Show Logs"
     Write-Host "D. Delete Container"
@@ -495,28 +495,37 @@ function Show-Status {
     Write-Host ""
     
     $status = SSH-Run 'docker ps --filter name=fiatlux'
-    Write-Host $status
-    
-    Write-Host ""
-    $logs = SSH-Run 'cd /opt/fiatlux && docker compose logs --tail=10'
-    Write-Host $logs
-    
-    Read-Host "Press Enter"
-}
-
-function Update-Code {
-    Write-HD "Update Code"
-    Write-Host ""
-    
-    $confirm = Read-Host "Continue? (y/n)"
-    if ($confirm -ne "y") {
-        Write-WRN "Cancelled"
-        return
+    if ($status) {
+        $status | ForEach-Object { Write-Host $_ }
+    } else {
+        Write-WRN "No fiatlux containers found"
     }
     
-    SSH-Run 'cd /opt/fiatlux && git pull && docker compose up -d --build' | Out-Null
-    Write-OK "Updated"
-    Read-Host "Press Enter"
+    Write-Host ""
+    Write-INF "Recent Logs:"
+    $logs = SSH-Run 'cd /opt/fiatlux && docker compose logs --tail=20'
+    if ($logs) {
+        $logs | ForEach-Object { Write-Host $_ }
+    }
+    
+    Read-Host "`nPress Enter to continue"
+}
+
+function Start-Svc {
+    Write-HD "Start Service"
+    Write-Host ""
+    
+    SSH-Run 'cd /opt/fiatlux && docker compose up -d' | Out-Null
+    Write-OK "Service starting..."
+    Start-Sleep 2
+    
+    $status = SSH-Run 'docker ps | grep fiatlux'
+    if ($status) {
+        Write-OK "Service is running"
+    } else {
+        Write-ERR "Failed to start service"
+    }
+    Read-Host "Press Enter to continue"
 }
 
 function Stop-Svc {
@@ -540,7 +549,12 @@ function Show-Logs {
     Write-WRN "Press Ctrl+C to exit"
     Write-Host ""
     
-    SSH-Run 'cd /opt/fiatlux && docker compose logs -f'
+    $sshTarget = "$($global:Config.User)@$($global:Config.Server)"
+    # Використовуємо прямий виклик ssh через cmd для інтерактивного виводу
+    $batFile = Join-Path $env:TEMP "fiatlux-logs.bat"
+    Set-Content -Path $batFile -Value "@echo off`r`nssh.exe -t -o StrictHostKeyChecking=no $sshTarget `"cd /opt/fiatlux && docker compose logs -f`"" -Encoding ASCII
+    & cmd.exe /c $batFile
+    Remove-Item $batFile -ErrorAction SilentlyContinue
 }
 
 function Delete-Container {
@@ -579,7 +593,7 @@ do {
         { $_ -eq "K" -or $_ -eq "k" } { Setup-SSHKeys; Clear-Host; break }
         "4" { Deploy; Clear-Host; break }
         "5" { Show-Status; Clear-Host; break }
-        "6" { Update-Code; Clear-Host; break }
+        "6" { Start-Svc; Clear-Host; break }
         "7" { Stop-Svc; Clear-Host; break }
         "8" { Show-Logs; Clear-Host; break }
         { $_ -eq "D" -or $_ -eq "d" } { Delete-Container; Clear-Host; break }

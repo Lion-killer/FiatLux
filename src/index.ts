@@ -142,9 +142,9 @@ class FiatLuxService {
 
         if (schedule) {
           await this.dataManager.saveSchedule(schedule);
-          logger.info(`New schedule saved: ${schedule.type} for ${schedule.date}`);
+          logger.info(`New schedule saved: ${schedule.type} for ${schedule.date} (from message ${message.id})`);
         } else {
-          logger.debug('Message does not contain schedule information');
+          logger.debug(`Message ${message.id} does not contain schedule information`);
         }
       } catch (error) {
         logger.error('Error processing new message:', error);
