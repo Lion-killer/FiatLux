@@ -727,6 +727,7 @@
                 const healthData = await healthResponse.json();
                 const lastParsed = (healthData.success && healthData.data) ? healthData.data.lastParsedPublishedAt : null;
 
+                // Оновлюємо статус лише якщо у нас вже є дані або це перше завантаження
                 updateApiStatus('connected', lastParsed);
                 hideError();
 
@@ -842,28 +843,40 @@
             }
         }
 
+        let lastKnownParsedDate = null;
+
         function updateApiStatus(state, lastParsedPublishedAt = null) {
             const apiStatus = document.getElementById('apiStatus');
 
+            if (lastParsedPublishedAt) {
+                lastKnownParsedDate = lastParsedPublishedAt;
+            }
+
+            let formattedDate = '';
+            if (lastKnownParsedDate) {
+                const date = new Date(lastKnownParsedDate);
+                formattedDate = date.toLocaleString('uk-UA', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+
             if (state === 'connected') {
                 let statusText = '✓ Підключено до сервера';
-
-                if (lastParsedPublishedAt) {
-                    const date = new Date(lastParsedPublishedAt);
-                    const formattedDate = date.toLocaleString('uk-UA', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
+                if (formattedDate) {
                     statusText += ` | Останнє повідомлення: ${formattedDate}`;
                 }
-
                 apiStatus.textContent = statusText;
                 apiStatus.className = 'api-status connected';
             } else if (state === 'retrying') {
-                apiStatus.textContent = '... Перепідключення до сервера';
+                let statusText = '⏳ Перепідключення до сервера';
+                if (formattedDate) {
+                    statusText += ` | Останнє повідомлення: ${formattedDate}`;
+                }
+                apiStatus.textContent = statusText;
                 apiStatus.className = 'api-status no-data';
             } else {
                 apiStatus.textContent = '✗ Немає зв\'язку з сервером';
