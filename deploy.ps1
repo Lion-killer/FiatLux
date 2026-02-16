@@ -448,19 +448,27 @@ function Deploy {
     $preCheck = SSH-Run "ls -ld /opt/fiatlux/.env 2>/dev/null || echo 'not found'"
     Write-INF "Current state: $preCheck"
 
-    # Створюємо команду в один рядок для надійності
-    $cmd = "cd /opt/fiatlux && "
-    $cmd += "if [ -d .env ]; then echo 'Removing directory .env'; rm -rf .env; fi; "
-    $cmd += "API_ID_VAL=`$(grep '^API_ID=' .env 2>/dev/null | cut -d= -f2- || echo ''); "
-    $cmd += "API_HASH_VAL=`$(grep '^API_HASH=' .env 2>/dev/null | cut -d= -f2- || echo ''); "
-    $cmd += "SESSION_VAL=`$(grep '^SESSION_STRING=' .env 2>/dev/null | cut -d= -f2- || echo ''); "
-    $cmd += "printf 'CHANNEL_USERNAME=$($global:Config.Channel)\nPORT=$($global:Config.Port)\nHOST=0.0.0.0\nLOG_LEVEL=info\n' > .env; "
-    $cmd += "if [ -n \"`$API_ID_VAL\" ]; then printf 'API_ID=%s\n' \"`$API_ID_VAL\" >> .env; fi; "
-    $cmd += "if [ -n \"`$API_HASH_VAL\" ]; then printf 'API_HASH=%s\n' \"`$API_HASH_VAL\" >> .env; fi; "
-    $cmd += "if [ -n \"`$SESSION_VAL\" ]; then printf 'SESSION_STRING=%s\n' \"`$SESSION_VAL\" >> .env; fi; "
-    $cmd += "ls -ld .env; file .env 2>/dev/null || echo 'file command not found'"
+    # Використовуємо Here-String для чистоти коду
+    $bashScript = @"
+cd /opt/fiatlux
+if [ -d .env ]; then 
+    echo 'Removing accidental directory .env'
+    rm -rf .env
+fi
+API_ID_VAL=`$(grep '^API_ID=' .env 2>/dev/null | cut -d= -f2- || echo '')
+API_HASH_VAL=`$(grep '^API_HASH=' .env 2>/dev/null | cut -d= -f2- || echo '')
+SESSION_VAL=`$(grep '^SESSION_STRING=' .env 2>/dev/null | cut -d= -f2- || echo '')
+printf 'CHANNEL_USERNAME=$($global:Config.Channel)\nPORT=$($global:Config.Port)\nHOST=0.0.0.0\nLOG_LEVEL=info\n' > .env
+if [ -n "`$API_ID_VAL" ]; then printf 'API_ID=%s\n' "`$API_ID_VAL" >> .env; fi
+if [ -n "`$API_HASH_VAL" ]; then printf 'API_HASH=%s\n' "`$API_HASH_VAL" >> .env; fi
+if [ -n "`$SESSION_VAL" ]; then printf 'SESSION_STRING=%s\n' "`$SESSION_VAL" >> .env; fi
+ls -ld .env
+file .env 2>/dev/null || echo 'file command not found'
+"@
 
-    $envResult = SSH-Run $cmd
+    # Перетворюємо в один рядок для SSH-Run (замінюємо переноси на ;)
+    $sanitizedCmd = $bashScript -replace "`r`n", "; " -replace "`n", "; "
+    $envResult = SSH-Run $sanitizedCmd
     Write-Host $envResult -ForegroundColor Gray
     Write-OK "Done"
     
