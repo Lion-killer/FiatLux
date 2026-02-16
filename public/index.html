@@ -59,6 +59,10 @@
             color: #9ca3af;
         }
 
+        .api-status.retrying {
+            color: #fcd34d;
+        }
+
         .status-card {
             background: white;
             border-radius: 15px;
@@ -714,7 +718,10 @@
             isFetching = true;
 
             try {
-                updateApiStatus('retrying');
+                // Викликаємо тільки якщо це перша спроба або була помилка раніше
+                if (!powerOffSchedule.length || document.getElementById('apiStatus').classList.contains('disconnected')) {
+                    updateApiStatus('retrying');
+                }
                 const response = await fetch(`${API_BASE}/api/schedule/all`);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
@@ -781,7 +788,7 @@
                 // Визначаємо унікальні черги та заповнюємо selector
                 const prevQueues = allQueues.join(',');
                 allQueues = [...new Set(powerOffSchedule.map(p => p.queue))].sort((a, b) => a - b);
-                
+
                 // Оновлюємо селектор лише якщо набір черг змінився
                 if (allQueues.join(',') !== prevQueues) {
                     populateQueueSelector();
@@ -793,7 +800,7 @@
                     selectedQueue = String(allQueues[0]);
                     saveSelectedQueue(selectedQueue);
                 }
-                
+
                 const selector = document.getElementById('queueSelector');
                 if (selector.value !== selectedQueue) {
                     selector.value = selectedQueue;
@@ -877,7 +884,7 @@
                     statusText += ` | Останнє повідомлення: ${formattedDate}`;
                 }
                 apiStatus.textContent = statusText;
-                apiStatus.className = 'api-status no-data';
+                apiStatus.className = 'api-status retrying';
             } else {
                 apiStatus.textContent = '✗ Немає зв\'язку з сервером';
                 apiStatus.className = 'api-status disconnected';
