@@ -20,6 +20,16 @@ export class EnvManager {
       return envMap;
     }
 
+    // Check if it's a directory (happens in Docker if file is missing)
+    const stats = fs.statSync(this.envPath);
+    if (stats.isDirectory()) {
+      throw new Error(
+        `Critical Error: "${this.envPath}" is a directory, not a file.\n` +
+        `This often happens in Docker when you mount a non-existent .env file.\n` +
+        `Please delete the .env directory on your host and create a file instead.`
+      );
+    }
+
     const content = fs.readFileSync(this.envPath, 'utf-8');
     const lines = content.split('\n');
 
@@ -49,6 +59,10 @@ export class EnvManager {
     let content = '';
 
     if (fs.existsSync(this.envPath)) {
+      const stats = fs.statSync(this.envPath);
+      if (stats.isDirectory()) {
+        throw new Error(`Cannot write to .env because "${this.envPath}" is a directory.`);
+      }
       content = fs.readFileSync(this.envPath, 'utf-8');
     } else {
       // Create basic structure if file doesn't exist

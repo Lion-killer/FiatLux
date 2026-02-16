@@ -429,6 +429,11 @@ function Deploy {
     # Зберігаємо існуючі API credentials (API_ID, API_HASH, SESSION_STRING налаштовуються через web інтерфейс)
     # Якщо .env вже існує — оновлюємо тільки базові поля, зберігаючи API credentials
     $envScript = @"
+if [ -d /opt/fiatlux/.env ]; then
+  # Видалити якщо це папка (може статися через Docker mount помилку)
+  rm -rf /opt/fiatlux/.env
+fi
+
 if [ -f /opt/fiatlux/.env ]; then
   # Зберегти існуючі API credentials
   API_ID_VAL=`$(grep '^API_ID=' /opt/fiatlux/.env | cut -d= -f2-)
