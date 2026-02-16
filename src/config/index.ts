@@ -1,5 +1,4 @@
 import dotenv from 'dotenv';
-import path from 'path';
 
 dotenv.config();
 
@@ -13,10 +12,6 @@ interface Config {
   server: {
     port: number;
     host: string;
-  };
-  storage: {
-    dataDir: string;
-    schedulesFile: string;
   };
   logging: {
     level: string;
@@ -60,7 +55,7 @@ function getEnvNumber(name: string, defaultValue?: number): number {
 
 const config: Config = {
   telegram: {
-    apiId: getEnvNumber('API_ID', 0), // Default 0 if not set
+    apiId: getEnvNumber('API_ID', 0),
     apiHash: getEnvVar('API_HASH', false),
     sessionString: getEnvVar('SESSION_STRING', false),
     channelUsername: getEnvVar('CHANNEL_USERNAME', false) || 'pat_cherkasyoblenergo',
@@ -68,10 +63,6 @@ const config: Config = {
   server: {
     port: getEnvNumber('PORT', 8080),
     host: getEnvVar('HOST', false) || '0.0.0.0',
-  },
-  storage: {
-    dataDir: getEnvVar('DATA_DIR', false) || './data',
-    schedulesFile: path.join(getEnvVar('DATA_DIR', false) || './data', 'schedules.json'),
   },
   logging: {
     level: getEnvVar('LOG_LEVEL', false) || 'info',

@@ -14,7 +14,7 @@ export class EnvManager {
    */
   private readEnvFile(): Map<string, string> {
     const envMap = new Map<string, string>();
-    
+
     if (!fs.existsSync(this.envPath)) {
       logger.warn('.env file not found, will create new one');
       return envMap;
@@ -25,7 +25,7 @@ export class EnvManager {
 
     for (const line of lines) {
       const trimmed = line.trim();
-      
+
       // Skip comments and empty lines
       if (!trimmed || trimmed.startsWith('#')) {
         continue;
@@ -47,7 +47,7 @@ export class EnvManager {
    */
   private writeEnvFile(updates: Map<string, string>): void {
     let content = '';
-    
+
     if (fs.existsSync(this.envPath)) {
       content = fs.readFileSync(this.envPath, 'utf-8');
     } else {
@@ -65,9 +65,6 @@ CHANNEL_USERNAME=pat_cherkasyoblenergo
 # API Server configuration
 PORT=8080
 HOST=0.0.0.0
-
-# Data storage path
-DATA_DIR=./data
 
 # Logging level (debug, info, warn, error)
 LOG_LEVEL=info
@@ -89,7 +86,7 @@ LOG_LEVEL=info
       const equalIndex = trimmed.indexOf('=');
       if (equalIndex > 0) {
         const key = trimmed.substring(0, equalIndex).trim();
-        
+
         if (updates.has(key)) {
           const value = updates.get(key);
           lines[i] = `${key}=${value}`;
@@ -114,7 +111,7 @@ LOG_LEVEL=info
    */
   public updateVariables(updates: Record<string, string>): void {
     const envMap = this.readEnvFile();
-    
+
     for (const [key, value] of Object.entries(updates)) {
       envMap.set(key, value);
       // Also update in current process
@@ -140,10 +137,10 @@ LOG_LEVEL=info
     const sessionString = process.env.SESSION_STRING;
 
     return !!(
-      apiId && 
-      !apiId.startsWith('your_') && 
-      apiHash && 
-      !apiHash.startsWith('your_') && 
+      apiId &&
+      !apiId.startsWith('your_') &&
+      apiHash &&
+      !apiHash.startsWith('your_') &&
       sessionString &&
       sessionString.length > 0
     );
@@ -157,9 +154,9 @@ LOG_LEVEL=info
     const apiHash = process.env.API_HASH;
 
     return !!(
-      apiId && 
-      !apiId.startsWith('your_') && 
-      apiHash && 
+      apiId &&
+      !apiId.startsWith('your_') &&
+      apiHash &&
       !apiHash.startsWith('your_')
     );
   }

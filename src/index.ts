@@ -20,22 +20,22 @@ class FiatLuxService {
   constructor() {
     this.dataManager = new DataManager();
     this.envManager = new EnvManager();
-    
+
     // Create a placeholder monitor for API server (will be replaced if credentials exist)
     const placeholderMonitor = {
       isConnected: () => this.isTelegramConnected,
-      connect: async () => {},
-      disconnect: async () => {},
+      connect: async () => { },
+      disconnect: async () => { },
       getRecentMessages: async () => [],
-      subscribeToNewMessages: () => {},
+      subscribeToNewMessages: () => { },
     } as any;
-    
+
     this.apiServer = new ApiServer(this.dataManager, placeholderMonitor);
   }
 
   async initialize(): Promise<void> {
     logger.info('=== FiatLux Service Starting ===');
-    
+
     try {
       // Initialize data storage
       await this.dataManager.initialize();
@@ -72,7 +72,7 @@ class FiatLuxService {
         // Перевіряємо чи SESSION_STRING невалідний
         if (
           !config.telegram.sessionString ||
-          typeof error === 'object' && error && error.message && error.message.includes('SESSION_STRING')
+          typeof error === 'object' && error && (error as any).message && (error as any).message.includes('SESSION_STRING')
         ) {
           logger.warn('❌ SESSION_STRING невалідний або авторизація втрачена');
           logger.warn('Перемикаємося у режим налаштування (setup mode)');
@@ -110,18 +110,18 @@ class FiatLuxService {
 
   private async loadRecentSchedules(): Promise<void> {
     if (!this.telegramMonitor) return;
-    
+
     try {
       logger.info('Loading recent messages...');
       const messages = await this.telegramMonitor.getRecentMessages(100);
       const schedules = ScheduleParser.parseMessages(messages);
-      
+
       logger.info(`Found ${schedules.length} schedules in recent messages`);
-      
+
       for (const schedule of schedules) {
         await this.dataManager.saveSchedule(schedule);
       }
-      
+
       logger.info('Recent schedules loaded successfully');
     } catch (error) {
       logger.error('Failed to load recent schedules:', error);
@@ -130,14 +130,14 @@ class FiatLuxService {
 
   private subscribeToNewMessages(): void {
     if (!this.telegramMonitor) return;
-    
+
     this.telegramMonitor.subscribeToNewMessages(async (message: Api.Message) => {
       try {
         logger.info(`Processing new message: ${message.id}`);
         this.apiServer.updateLastMessageCheck();
-        
+
         const schedule = ScheduleParser.parseMessage(message);
-        
+
         if (schedule) {
           await this.dataManager.saveSchedule(schedule);
           logger.info(`New schedule saved: ${schedule.type} for ${schedule.date}`);
@@ -153,21 +153,21 @@ class FiatLuxService {
   // Періодичне опитування каналу — підстраховка, якщо event handler не отримує оновлення
   private startPolling(): void {
     logger.info(`Polling every ${FiatLuxService.POLLING_INTERVAL_MS / 1000}s for new schedules`);
-    
+
     this.pollingInterval = setInterval(async () => {
       if (this.isShuttingDown || !this.telegramMonitor) return;
-      
+
       try {
         logger.debug('Polling for new messages...');
         const messages = await this.telegramMonitor.getRecentMessages(20);
         const schedules = ScheduleParser.parseMessages(messages);
-        
+
         let newCount = 0;
         for (const schedule of schedules) {
           const isNew = await this.dataManager.saveSchedule(schedule);
           if (isNew) newCount++;
         }
-        
+
         if (newCount > 0) {
           logger.info(`Polling: found ${newCount} new schedule(s)`);
           this.apiServer.updateLastMessageCheck();
@@ -180,22 +180,22 @@ class FiatLuxService {
 
   async shutdown(): Promise<void> {
     if (this.isShuttingDown) return;
-    
+
     this.isShuttingDown = true;
     logger.info('=== Shutting down FiatLux Service ===');
-    
+
     try {
       // Зупинити polling
       if (this.pollingInterval) {
         clearInterval(this.pollingInterval);
         this.pollingInterval = undefined;
       }
-      
+
       // Disconnect from Telegram if connected
       if (this.telegramMonitor && this.isTelegramConnected) {
         await this.telegramMonitor.disconnect();
       }
-      
+
       logger.info('=== FiatLux Service Stopped ===');
       logger.info('ℹ️ In-memory data has been cleared (data will be reloaded on restart)');
       process.exit(0);
@@ -209,31 +209,31 @@ class FiatLuxService {
 // Main entry point
 async function main() {
   const service = new FiatLuxService();
-  
+
   // Handle graceful shutdown
   process.on('SIGINT', () => {
     logger.info('Received SIGINT signal');
     service.shutdown();
   });
-  
+
   process.on('SIGTERM', () => {
     logger.info('Received SIGTERM signal');
     service.shutdown();
   });
-  
+
   process.on('uncaughtException', (error) => {
     logger.error('Uncaught exception:', error);
     service.shutdown();
   });
-  
+
   process.on('unhandledRejection', (reason, _promise) => {
     // Логуємо але НЕ зупиняємо сервіс — GramJS може генерувати unhandled rejections
-    const message = reason instanceof Error 
-      ? `${reason.message}\n${reason.stack}` 
+    const message = reason instanceof Error
+      ? `${reason.message}\n${reason.stack}`
       : JSON.stringify(reason, null, 2);
     logger.error(`Unhandled rejection: ${message}`);
   });
-  
+
   // Start the service
   try {
     await service.initialize();

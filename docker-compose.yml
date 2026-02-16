@@ -10,5 +10,4 @@ services:
       - HOST=0.0.0.0
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
-      - ./data:/app/data
       - ./.env:/app/.env  # Зберігає .env між перезапусками
