@@ -2,8 +2,8 @@ import { TelegramClient } from 'telegram';
 import { StringSession } from 'telegram/sessions';
 import { NewMessage, NewMessageEvent } from 'telegram/events';
 import { Api } from 'telegram/tl';
-// @ts-ignore - no types available for input module
-import input from 'input';
+// @ts-ignore - removed input dependency for strictly web auth
+// import input from 'input';
 import config from '../config';
 import { logger } from '../utils/logger';
 
@@ -29,12 +29,13 @@ export class TelegramChannelMonitor {
     try {
       logger.info('Connecting to Telegram...');
 
-      await this.client.start({
-        phoneNumber: async () => await input.text('Please enter your phone number: '),
-        password: async () => await input.text('Please enter your password: '),
-        phoneCode: async () => await input.text('Please enter the code you received: '),
-        onError: (err: Error) => logger.error('Telegram auth error:', err),
-      });
+      await this.client.connect();
+
+      if (!await this.client.isUserAuthorized()) {
+        logger.warn('Telegram client is connected but NOT authorized.');
+        this.connected = false;
+        throw new Error('NOT_AUTHORIZED');
+      }
 
       this.connected = true;
       logger.info('Successfully connected to Telegram');

@@ -73,6 +73,7 @@ docs/
 - **Code**: English (variable names, function names)
 - **Logs**: Ukrainian for user messages, English for technical details
 - **Commit messages**: Ukrainian (УКР)
+- **AI Artifacts**: Ukrainian (УКР) for all task.md, implementation_plan.md, and walkthrough.md files
 
 Example:
 ```typescript

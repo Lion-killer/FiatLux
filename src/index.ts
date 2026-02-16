@@ -64,26 +64,31 @@ class FiatLuxService {
       // Update API server with real monitor
       (this.apiServer as any).telegramMonitor = this.telegramMonitor;
 
+      // Start API server EARLY to ensure web interface is available
+      this.apiServer.listen(config.server.port, config.server.host);
+      logger.info('API server started, proceeding with Telegram connection...');
+
       // Connect to Telegram
       try {
         await this.telegramMonitor.connect();
         this.isTelegramConnected = true;
       } catch (error) {
-        // Перевіряємо чи SESSION_STRING невалідний
+        // Перевіряємо чи SESSION_STRING невалідний або авторизація втрачена
+        const errorMsg = typeof error === 'object' && error && (error as any).message ? (error as any).message : String(error);
+
         if (
-          !config.telegram.sessionString ||
-          typeof error === 'object' && error && (error as any).message && (error as any).message.includes('SESSION_STRING')
+          errorMsg.includes('NOT_AUTHORIZED') ||
+          errorMsg.includes('SESSION_STRING') ||
+          !config.telegram.sessionString
         ) {
-          logger.warn('❌ SESSION_STRING невалідний або авторизація втрачена');
+          logger.warn('❌ SESSION_STRING невалідний або авторизація відсутня/відкликана');
           logger.warn('Перемикаємося у режим налаштування (setup mode)');
-          logger.info(`📍 Open http://localhost:${config.server.port}/setup.html to re-authenticate`);
-          this.apiServer.listen(config.server.port, config.server.host);
+          logger.info(`📍 Open http://localhost:${config.server.port}/setup.html to authenticate via WEB`);
+          // API server is already listening
           logger.info('=== FiatLux Service Started (Setup Mode) ===');
           return;
         } else {
           logger.error('Telegram connection failed:', error);
-          // If Telegram connection failed but we have API server, still run in limited mode
-          this.apiServer.listen(config.server.port, config.server.host);
           logger.info('=== FiatLux Service Started (Limited Mode) ===');
           return;
         }
@@ -97,9 +102,6 @@ class FiatLuxService {
 
       // Запуск періодичного опитування (підстраховка для event handler)
       this.startPolling();
-
-      // Start API server
-      this.apiServer.listen(config.server.port, config.server.host);
 
       logger.info('=== FiatLux Service Started Successfully ===');
     } catch (error) {
