@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="uk">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -32,7 +33,7 @@
         .header h1 {
             font-size: 1.8em;
             margin-bottom: 5px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .current-time {
@@ -63,7 +64,7 @@
             border-radius: 15px;
             padding: 15px;
             margin-bottom: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
 
         .status-indicator {
@@ -107,13 +108,27 @@
         }
 
         @keyframes pulse-green {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(134, 239, 172, 0.7); }
-            50% { box-shadow: 0 0 0 15px rgba(134, 239, 172, 0); }
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(134, 239, 172, 0.7);
+            }
+
+            50% {
+                box-shadow: 0 0 0 15px rgba(134, 239, 172, 0);
+            }
         }
 
         @keyframes pulse-red {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(252, 165, 165, 0.7); }
-            50% { box-shadow: 0 0 0 15px rgba(252, 165, 165, 0); }
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(252, 165, 165, 0.7);
+            }
+
+            50% {
+                box-shadow: 0 0 0 15px rgba(252, 165, 165, 0);
+            }
         }
 
         .countdown {
@@ -136,7 +151,7 @@
             background: white;
             border-radius: 15px;
             padding: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             margin-bottom: 10px;
         }
 
@@ -382,8 +397,15 @@
         }
 
         @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
 
         .schedule-list {
@@ -514,10 +536,24 @@
         }
 
         @keyframes dots {
-            0%, 20% { content: ''; }
-            40% { content: '.'; }
-            60% { content: '..'; }
-            80%, 100% { content: '...'; }
+
+            0%,
+            20% {
+                content: '';
+            }
+
+            40% {
+                content: '.';
+            }
+
+            60% {
+                content: '..';
+            }
+
+            80%,
+            100% {
+                content: '...';
+            }
         }
 
         .queue-selector-card {
@@ -525,7 +561,7 @@
             border-radius: 15px;
             padding: 12px 15px;
             margin-bottom: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             display: flex;
             align-items: center;
             gap: 15px;
@@ -578,6 +614,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -637,13 +674,13 @@
         let powerOffSchedule = [];
         let allQueues = [];
         let selectedQueue = '';
-        
+
         // Перевіряємо чи налаштовано SESSION_STRING
         async function checkSetupRequired() {
             try {
                 const response = await fetch(`${API_BASE}/api/setup/status`);
                 const data = await response.json();
-                
+
                 if (data.success && !data.data.configured) {
                     // Redirect to setup page
                     window.location.href = '/setup.html';
@@ -655,7 +692,7 @@
                 return false;
             }
         }
-        
+
         // Завантажуємо вибрану чергу з localStorage
         function loadSavedQueue() {
             const saved = localStorage.getItem(QUEUE_STORAGE_KEY);
@@ -663,7 +700,7 @@
                 selectedQueue = saved;
             }
         }
-        
+
         // Зберігаємо вибрану чергу в localStorage
         function saveSelectedQueue(queue) {
             localStorage.setItem(QUEUE_STORAGE_KEY, queue);
@@ -676,9 +713,15 @@
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
                 }
-                
+
                 const data = await response.json();
-                updateApiStatus(true);
+
+                // Fetch health status for last parsed date
+                const healthResponse = await fetch(`${API_BASE}/api/health`);
+                const healthData = await healthResponse.json();
+                const lastParsed = (healthData.success && healthData.data) ? healthData.data.lastParsedPublishedAt : null;
+
+                updateApiStatus(true, lastParsed);
 
                 if (!data.success || !data.data) {
                     throw new Error('Некоректна структура відповіді');
@@ -695,7 +738,7 @@
                         // Парсимо дату в локальному часовому поясі
                         const [year, month, day] = schedule.date.split('-').map(Number);
                         const scheduleDate = new Date(year, month - 1, day);
-                        
+
                         schedule.queues.forEach(queue => {
                             if (queue.timeSlots && Array.isArray(queue.timeSlots)) {
                                 queue.timeSlots.forEach(slot => {
@@ -730,7 +773,7 @@
                 // Визначаємо унікальні черги та заповнюємо selector
                 allQueues = [...new Set(powerOffSchedule.map(p => p.queue))].sort((a, b) => a - b);
                 populateQueueSelector();
-                
+
                 // Завантажуємо збережену чергу або вибираємо першу доступну
                 loadSavedQueue();
                 if (!selectedQueue && allQueues.length > 0) {
@@ -738,7 +781,7 @@
                     saveSelectedQueue(selectedQueue);
                 }
                 document.getElementById('queueSelector').value = selectedQueue;
-                
+
                 // Додаємо слухач для зміни черги
                 document.getElementById('queueSelector').addEventListener('change', (e) => {
                     selectedQueue = e.target.value;
@@ -769,16 +812,31 @@
                 console.error('Помилка завантаження даних:', error);
                 updateApiStatus(false);
                 showError(`Помилка при завантаженні розкладів: ${error.message}`);
-                
+
                 // Спробуємо знову через 5 секунд
                 setTimeout(fetchScheduleData, 5000);
             }
         }
 
-        function updateApiStatus(connected) {
+        function updateApiStatus(connected, lastParsedPublishedAt = null) {
             const apiStatus = document.getElementById('apiStatus');
+
             if (connected) {
-                apiStatus.textContent = '✓ Підключено до сервера';
+                let statusText = '✓ Підключено до сервера';
+
+                if (lastParsedPublishedAt) {
+                    const date = new Date(lastParsedPublishedAt);
+                    const formattedDate = date.toLocaleString('uk-UA', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    statusText += ` | Останнє повідомлення: ${formattedDate}`;
+                }
+
+                apiStatus.textContent = statusText;
                 apiStatus.className = 'api-status connected';
             } else {
                 apiStatus.textContent = '✗ Немає зв\'язку з сервером';
@@ -798,16 +856,16 @@
 
         function updateCurrentTime() {
             const now = new Date();
-            const options = { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
+            const options = {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
                 day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit'
             };
-            document.getElementById('currentTime').textContent = 
+            document.getElementById('currentTime').textContent =
                 now.toLocaleDateString('uk-UA', options);
         }
 
@@ -820,10 +878,10 @@
         function populateQueueSelector() {
             const selector = document.getElementById('queueSelector');
             const currentValue = selector.value;
-            
+
             // Очищуємо всі options
             selector.innerHTML = '';
-            
+
             // Додаємо options для кожної черги
             allQueues.forEach(queue => {
                 const option = document.createElement('option');
@@ -831,7 +889,7 @@
                 option.textContent = `Черга ${queue}`;
                 selector.appendChild(option);
             });
-            
+
             // Повертаємо попередню вибрану значення
             if (currentValue && allQueues.includes(parseFloat(currentValue))) {
                 selector.value = currentValue;
@@ -840,7 +898,7 @@
 
         function isInOutagePeriod(checkTime) {
             const filteredSchedule = getFilteredSchedule();
-            return filteredSchedule.some(period => 
+            return filteredSchedule.some(period =>
                 checkTime >= period.start && checkTime < period.end
             );
         }
@@ -851,7 +909,7 @@
             const filteredSchedule = getFilteredSchedule();
 
             if (isPowerOff) {
-                const currentPeriods = filteredSchedule.filter(period => 
+                const currentPeriods = filteredSchedule.filter(period =>
                     now >= period.start && now < period.end
                 );
                 if (currentPeriods.length > 0) {
@@ -865,7 +923,7 @@
                 const futureOutages = filteredSchedule
                     .filter(period => period.start > now)
                     .sort((a, b) => a.start - b.start);
-                
+
                 if (futureOutages.length > 0) {
                     return {
                         type: 'off',
@@ -914,7 +972,7 @@
                 const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
                 const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
 
-                countdownTime.textContent = 
+                countdownTime.textContent =
                     `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
             } else {
                 countdownTime.textContent = '--:--:--';
@@ -966,10 +1024,10 @@
         function updateTimelineSubheader() {
             const now = new Date();
             const { startTime, endTime } = getTimelineRange();
-            
+
             const hoursBefore = Math.round((now - startTime) / (1000 * 60 * 60));
             const hoursAfter = Math.round((endTime - now) / (1000 * 60 * 60));
-            
+
             const subheader = document.getElementById('timelineSubheader');
             subheader.textContent = `${hoursBefore} годин назад ← ЗАРАЗ → ${hoursAfter} годин вперед`;
         }
@@ -991,17 +1049,17 @@
                 const time = new Date(startTime.getTime() + i * 30 * 60 * 1000);
                 const segment = document.createElement('div');
                 const isHour = time.getMinutes() === 0;
-                
+
                 segment.className = isHour ? 'timeline-segment hour' : 'timeline-segment';
                 segment.dataset.time = time.getTime();
                 segment.dataset.hour = time.getHours();
                 segment.dataset.minute = time.getMinutes();
                 segment.dataset.date = time.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
-                
+
                 if (time < now) {
                     segment.classList.add('past');
                 }
-                
+
                 const currentHourStart = new Date(now);
                 currentHourStart.setMinutes(0, 0, 0);
                 if (isHour && time.getTime() === currentHourStart.getTime()) {
@@ -1020,16 +1078,16 @@
                     const dayStart = new Date(period.start);
                     dayStart.setHours(0, 0, 0, 0);
                     scheduleDates.add(dayStart.getTime());
-                    
+
                     // Якщо період закінчується наступного дня (але НЕ о 00:00), додаємо і його
                     const dayEnd = new Date(period.end);
                     dayEnd.setHours(0, 0, 0, 0);
-                    if (dayEnd.getTime() !== dayStart.getTime() && 
+                    if (dayEnd.getTime() !== dayStart.getTime() &&
                         (period.end.getHours() !== 0 || period.end.getMinutes() !== 0 || period.end.getSeconds() !== 0)) {
                         scheduleDates.add(dayEnd.getTime());
                     }
                 });
-                
+
                 const sortedDates = Array.from(scheduleDates).sort((a, b) => a - b);
                 const firstScheduleDay = new Date(sortedDates[0]);
                 firstScheduleDay.setHours(0, 0, 0, 0);
@@ -1041,10 +1099,10 @@
                 if (startTime.getTime() < firstScheduleDay.getTime()) {
                     const div = document.createElement('div');
                     div.className = 'no-data-period';
-                    
+
                     const duration = (Math.min(firstScheduleDay.getTime(), endTime.getTime()) - startTime.getTime()) / (1000 * 60 * 60);
                     const widthPercent = (duration / totalHours) * 100;
-                    
+
                     div.style.left = '0%';
                     div.style.width = `${widthPercent}%`;
                     noDataPeriods.appendChild(div);
@@ -1054,13 +1112,13 @@
                 if (endTime.getTime() > lastScheduleDay.getTime()) {
                     const div = document.createElement('div');
                     div.className = 'no-data-period';
-                    
+
                     const startOffset = (Math.max(lastScheduleDay.getTime(), startTime.getTime()) - startTime.getTime()) / (1000 * 60 * 60);
                     const duration = (endTime.getTime() - Math.max(lastScheduleDay.getTime(), startTime.getTime())) / (1000 * 60 * 60);
-                    
+
                     const startPercent = (startOffset / totalHours) * 100;
                     const widthPercent = (duration / totalHours) * 100;
-                    
+
                     div.style.left = `${startPercent}%`;
                     div.style.width = `${widthPercent}%`;
                     noDataPeriods.appendChild(div);
@@ -1078,7 +1136,7 @@
                 if (period.end > startTime && period.start < endTime) {
                     const div = document.createElement('div');
                     div.className = 'power-off-period';
-                    
+
                     if (period.end <= now) {
                         div.classList.add('past');
                     }
@@ -1094,17 +1152,17 @@
 
                     div.style.left = `${startPercent}%`;
                     div.style.width = `${widthPercent}%`;
-                    
+
                     // Додаємо дані для tooltip
                     div.dataset.startTime = period.start.getTime();
                     div.dataset.endTime = period.end.getTime();
                     div.dataset.queue = period.queue;
-                    
+
                     // Додаємо обробники подій
                     div.addEventListener('mouseenter', showTooltip);
                     div.addEventListener('mouseleave', hideTooltip);
                     div.addEventListener('mousemove', moveTooltip);
-                    
+
                     powerOffPeriods.appendChild(div);
                 }
             });
@@ -1113,7 +1171,7 @@
             // Графіки добові - якщо на день є графік відключень, то між ними є світло
             const powerOnPeriods = document.getElementById('powerOnPeriods');
             powerOnPeriods.innerHTML = '';
-            
+
             if (filteredSchedule.length > 0) {
                 // Знаходимо всі унікальні дати з графіками
                 const scheduleDates = new Set();
@@ -1121,98 +1179,98 @@
                     const dayStart = new Date(period.start);
                     dayStart.setHours(0, 0, 0, 0);
                     scheduleDates.add(dayStart.getTime());
-                    
+
                     // Якщо період закінчується наступного дня (але НЕ о 00:00), додаємо і його
                     // Період 22:30-00:00 не додає наступну добу, бо 00:00 це початок наступної доби
                     const dayEnd = new Date(period.end);
                     dayEnd.setHours(0, 0, 0, 0);
-                    if (dayEnd.getTime() !== dayStart.getTime() && 
+                    if (dayEnd.getTime() !== dayStart.getTime() &&
                         (period.end.getHours() !== 0 || period.end.getMinutes() !== 0 || period.end.getSeconds() !== 0)) {
                         scheduleDates.add(dayEnd.getTime());
                     }
                 });
-                
+
                 // Для кожної дати з графіками створюємо зелені періоди
                 Array.from(scheduleDates).sort((a, b) => a - b).forEach(dayTime => {
                     const dayStart = new Date(dayTime);
                     const dayEnd = new Date(dayTime);
                     dayEnd.setDate(dayEnd.getDate() + 1);
                     dayEnd.setHours(0, 0, 0, 0);
-                    
+
                     // Обмежуємо добу видимим діапазоном timeline
                     const visibleDayStart = Math.max(dayStart.getTime(), startTime.getTime());
                     const visibleDayEnd = Math.min(dayEnd.getTime(), endTime.getTime());
-                    
+
                     if (visibleDayStart >= visibleDayEnd) return;
-                    
+
                     // Знаходимо всі відключення для цієї доби
                     const dayOffPeriods = filteredSchedule
                         .filter(p => {
                             return (p.start >= dayStart && p.start < dayEnd) ||
-                                   (p.end > dayStart && p.end <= dayEnd) ||
-                                   (p.start < dayStart && p.end > dayEnd);
+                                (p.end > dayStart && p.end <= dayEnd) ||
+                                (p.start < dayStart && p.end > dayEnd);
                         })
                         .sort((a, b) => a.start - b.start);
-                    
+
                     // Створюємо зелені блоки між відключеннями
                     let currentPosTime = visibleDayStart;
-                    
+
                     dayOffPeriods.forEach(offPeriod => {
                         const offStartTime = Math.max(offPeriod.start.getTime(), visibleDayStart);
                         const offEndTime = Math.min(offPeriod.end.getTime(), visibleDayEnd);
-                        
+
                         if (offStartTime > currentPosTime) {
                             // Є період зі світлом перед цим відключенням
                             const div = document.createElement('div');
                             div.className = 'power-on-period';
-                            
+
                             const startOffset = (currentPosTime - startTime.getTime()) / (1000 * 60 * 60);
                             const duration = (offStartTime - currentPosTime) / (1000 * 60 * 60);
-                            
+
                             const startPercent = (startOffset / totalHours) * 100;
                             const widthPercent = (duration / totalHours) * 100;
-                            
+
                             div.style.left = `${startPercent}%`;
                             div.style.width = `${widthPercent}%`;
-                            
+
                             div.dataset.startTime = currentPosTime;
                             div.dataset.endTime = offStartTime;
                             div.dataset.queue = filteredSchedule[0].queue;
                             div.dataset.powerOn = 'true';
-                            
+
                             div.addEventListener('mouseenter', showTooltip);
                             div.addEventListener('mouseleave', hideTooltip);
                             div.addEventListener('mousemove', moveTooltip);
-                            
+
                             powerOnPeriods.appendChild(div);
                         }
-                        
+
                         currentPosTime = Math.max(currentPosTime, offEndTime);
                     });
-                    
+
                     // Додаємо зелений блок від останнього відключення до кінця доби
                     if (currentPosTime < visibleDayEnd) {
                         const div = document.createElement('div');
                         div.className = 'power-on-period';
-                        
+
                         const startOffset = (currentPosTime - startTime.getTime()) / (1000 * 60 * 60);
                         const duration = (visibleDayEnd - currentPosTime) / (1000 * 60 * 60);
-                        
+
                         const startPercent = (startOffset / totalHours) * 100;
                         const widthPercent = (duration / totalHours) * 100;
-                        
+
                         div.style.left = `${startPercent}%`;
                         div.style.width = `${widthPercent}%`;
-                        
+
                         div.dataset.startTime = currentPosTime;
                         div.dataset.endTime = visibleDayEnd;
                         div.dataset.queue = filteredSchedule[0].queue;
                         div.dataset.powerOn = 'true';
-                        
+
                         div.addEventListener('mouseenter', showTooltip);
                         div.addEventListener('mouseleave', hideTooltip);
                         div.addEventListener('mousemove', moveTooltip);
-                        
+
                         powerOnPeriods.appendChild(div);
                     }
                 });
@@ -1226,9 +1284,9 @@
             const container = document.getElementById('timelineContainer');
             const labelsContainer = document.getElementById('timelineLabels');
             const allSegments = document.querySelectorAll('.timeline-segment');
-            
+
             labelsContainer.innerHTML = '';
-            
+
             const { totalHalfHours } = getTimelineRange();
             const containerWidth = container.offsetWidth;
             const hourSegments = [];
@@ -1240,17 +1298,17 @@
                     });
                 }
             });
-            
+
             const segmentCount = hourSegments.length;
             const segmentWidth = containerWidth / totalHalfHours;
             const minLabelDistance = 50;
-            
+
             let step = 1;
             if (segmentWidth * 2 < minLabelDistance) step = 2;
             if (segmentWidth * 2 * 2 < minLabelDistance) step = 3;
             if (segmentWidth * 2 * 3 < minLabelDistance) step = 4;
             if (segmentWidth * 2 * 4 < minLabelDistance) step = 6;
-            
+
             // Основні мітки часу (step)
             const labelPositions = new Set();
             hourSegments.forEach((item, hourIndex) => {
@@ -1309,21 +1367,21 @@
             const tooltip = document.getElementById('timelineTooltip');
             const tooltipTime = document.getElementById('tooltipTime');
             const tooltipDuration = document.getElementById('tooltipDuration');
-            
+
             const startTime = new Date(parseInt(event.target.dataset.startTime));
             const endTime = new Date(parseInt(event.target.dataset.endTime));
             const queue = event.target.dataset.queue;
             const isPowerOn = event.target.dataset.powerOn === 'true';
-            
+
             const duration = (endTime - startTime) / (1000 * 60 * 60);
             let hours = Math.floor(duration);
             let minutes = Math.round((duration - hours) * 60);
             if (minutes === 60) { hours++; minutes = 0; }
-            
+
             // Формат дати: 17 лют.
             const dateStr = startTime.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
             tooltipTime.textContent = `${dateStr} ${startTime.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })} - ${endTime.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}`;
-            
+
             let durationText = '';
             if (hours > 0) {
                 durationText = `${hours} год`;
@@ -1331,10 +1389,10 @@
             } else {
                 durationText = `${minutes} хв`;
             }
-            
+
             const statusText = isPowerOn ? '💡 Світло є' : '🔌 Відключення';
             tooltipDuration.textContent = `Черга ${queue} • ${statusText} • ${durationText}`;
-            
+
             tooltip.classList.add('show');
             moveTooltip(event);
         }
@@ -1346,15 +1404,15 @@
 
         function moveTooltip(event) {
             const tooltip = document.getElementById('timelineTooltip');
-            
+
             // Використовуємо fixed positioning відносно viewport
             let left = event.clientX;
             let top = event.clientY - tooltip.offsetHeight - 10;
-            
+
             // Перевіряємо щоб tooltip не виходив за межі екрану
             const viewportWidth = window.innerWidth;
             const viewportHeight = window.innerHeight;
-            
+
             if (left + tooltip.offsetWidth > viewportWidth - 10) {
                 left = viewportWidth - tooltip.offsetWidth - 10;
             }
@@ -1364,7 +1422,7 @@
             if (top < 10) {
                 top = event.clientY + 10;
             }
-            
+
             tooltip.style.left = `${left}px`;
             tooltip.style.top = `${top}px`;
         }
@@ -1373,7 +1431,7 @@
             const now = new Date();
             const { startTime, totalHours } = getTimelineRange();
             const offset = (now - startTime) / (1000 * 60 * 60);
-            
+
             const marker = document.getElementById('timeMarker');
             const offsetPercent = (offset / totalHours) * 100;
             marker.style.left = `${offsetPercent}%`;
@@ -1412,11 +1470,11 @@
 
                 const leftDiv = document.createElement('div');
                 leftDiv.className = 'schedule-item-left';
-                
+
                 const queueDiv = document.createElement('div');
                 queueDiv.className = 'schedule-queue';
                 queueDiv.textContent = `Черга ${period.queue}`;
-                
+
                 const timeDiv = document.createElement('div');
                 timeDiv.className = 'schedule-time';
                 timeDiv.textContent = `${period.start.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })} - ${period.end.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })} | ${period.start.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })}`;
@@ -1485,4 +1543,5 @@
         })();
     </script>
 </body>
+
 </html>

@@ -26,7 +26,7 @@ export class ApiServer {
     this.setupMiddleware();
     this.setupRoutes();
     this.setupErrorHandling();
-    
+
     // Clean up old auth sessions every 5 minutes
     setInterval(() => this.authManager.cleanupOldSessions(), 5 * 60 * 1000);
   }
@@ -43,7 +43,7 @@ export class ApiServer {
       res.header('Access-Control-Allow-Origin', '*');
       res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       res.header('Access-Control-Allow-Headers', 'Content-Type');
-      
+
       if (req.method === 'OPTIONS') {
         res.sendStatus(200);
       } else {
@@ -93,11 +93,11 @@ export class ApiServer {
     this.app.get('/api/debug/dates', (_req: Request, res: Response) => {
       const today = new Date();
       const todayStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
-      
+
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
       const tomorrowStr = `${tomorrow.getFullYear()}-${(tomorrow.getMonth() + 1).toString().padStart(2, '0')}-${tomorrow.getDate().toString().padStart(2, '0')}`;
-      
+
       res.json({
         systemDate: new Date().toISOString(),
         localTime: today.toString(),
@@ -176,13 +176,13 @@ export class ApiServer {
     // Error handler
     this.app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
       logger.error('API Error:', err);
-      
+
       const response: ApiResponse = {
         success: false,
         error: err.message || 'Internal server error',
         timestamp: new Date().toISOString(),
       };
-      
+
       res.status(500).json(response);
     });
   }
@@ -190,21 +190,22 @@ export class ApiServer {
   private async handleHealthCheck(_req: Request, res: Response): Promise<void> {
     try {
       const schedulesCount = await this.dataManager.getCount();
-      
+
       const health: HealthStatus = {
         status: 'ok',
         uptime: Math.floor((Date.now() - this.startTime) / 1000),
         telegramConnected: this.telegramMonitor.isConnected(),
         lastMessageCheck: this.lastMessageCheck,
+        lastParsedPublishedAt: await this.getLastParsedDate(),
         schedulesCount,
       };
-      
+
       const response: ApiResponse<HealthStatus> = {
         success: true,
         data: health,
         timestamp: new Date().toISOString(),
       };
-      
+
       res.json(response);
     } catch (error) {
       const err = error as Error;
@@ -219,13 +220,13 @@ export class ApiServer {
   private async handleGetCurrent(_req: Request, res: Response): Promise<void> {
     try {
       const schedule = await this.dataManager.getCurrentSchedule();
-      
+
       const response: ApiResponse = {
         success: true,
         data: schedule,
         timestamp: new Date().toISOString(),
       };
-      
+
       res.json(response);
     } catch (error) {
       const err = error as Error;
@@ -240,13 +241,13 @@ export class ApiServer {
   private async handleGetFuture(_req: Request, res: Response): Promise<void> {
     try {
       const schedule = await this.dataManager.getFutureSchedule();
-      
+
       const response: ApiResponse = {
         success: true,
         data: schedule,
         timestamp: new Date().toISOString(),
       };
-      
+
       res.json(response);
     } catch (error) {
       const err = error as Error;
@@ -261,13 +262,13 @@ export class ApiServer {
   private async handleGetAll(_req: Request, res: Response): Promise<void> {
     try {
       const schedules = await this.dataManager.getAllSchedules();
-      
+
       const response: ApiResponse = {
         success: true,
         data: schedules,
         timestamp: new Date().toISOString(),
       };
-      
+
       res.json(response);
     } catch (error) {
       const err = error as Error;
@@ -283,13 +284,13 @@ export class ApiServer {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const history = await this.dataManager.getHistory(limit);
-      
+
       const response: ApiResponse = {
         success: true,
         data: history,
         timestamp: new Date().toISOString(),
       };
-      
+
       res.json(response);
     } catch (error) {
       const err = error as Error;
@@ -305,14 +306,14 @@ export class ApiServer {
     try {
       logger.info('Manual refresh requested');
       this.lastMessageCheck = new Date().toISOString();
-      
+
       const messages = await this.telegramMonitor.getRecentMessages(50);
       const schedules = ScheduleParser.parseMessages(messages);
-      
+
       for (const schedule of schedules) {
         await this.dataManager.saveSchedule(schedule);
       }
-      
+
       const response: ApiResponse = {
         success: true,
         data: {
@@ -321,7 +322,7 @@ export class ApiServer {
         },
         timestamp: new Date().toISOString(),
       };
-      
+
       res.json(response);
     } catch (error) {
       const err = error as Error;
@@ -541,6 +542,16 @@ export class ApiServer {
 
   updateLastMessageCheck(): void {
     this.lastMessageCheck = new Date().toISOString();
+  }
+
+  private async getLastParsedDate(): Promise<string | undefined> {
+    try {
+      const history = await this.dataManager.getHistory(1);
+      return history.length > 0 ? history[0].publishedAt : undefined;
+    } catch (error) {
+      logger.error('Error getting last parsed date:', error);
+      return undefined;
+    }
   }
 
   listen(port: number, host: string): void {

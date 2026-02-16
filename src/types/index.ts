@@ -43,5 +43,6 @@ export interface HealthStatus {
   uptime: number;
   telegramConnected: boolean;
   lastMessageCheck?: string;
+  lastParsedPublishedAt?: string;
   schedulesCount: number;
 }
