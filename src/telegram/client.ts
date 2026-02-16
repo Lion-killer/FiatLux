@@ -28,7 +28,7 @@ export class TelegramChannelMonitor {
   async connect(): Promise<void> {
     try {
       logger.info('Connecting to Telegram...');
-      
+
       await this.client.start({
         phoneNumber: async () => await input.text('Please enter your phone number: '),
         password: async () => await input.text('Please enter your password: '),
@@ -38,7 +38,7 @@ export class TelegramChannelMonitor {
 
       this.connected = true;
       logger.info('Successfully connected to Telegram');
-      
+
       // Save session string for future use
       const sessionString = this.client.session.save() as unknown as string;
       if (sessionString && !config.telegram.sessionString) {
@@ -68,7 +68,7 @@ export class TelegramChannelMonitor {
 
     try {
       logger.info(`Fetching ${limit} recent messages from ${config.telegram.channelUsername}...`);
-      
+
       const messages = await this.client.getMessages(config.telegram.channelUsername, {
         limit,
       });
@@ -90,20 +90,20 @@ export class TelegramChannelMonitor {
 
     // Resolve entity спочатку для надійної фільтрації
     this.client.getInputEntity(config.telegram.channelUsername)
-      .then((entity) => {
+      .then(() => {
         this.client.addEventHandler(
           async (event: NewMessageEvent) => {
             const message = event.message;
-            
+
             if (message instanceof Api.Message) {
               logger.info(`New message received from event handler: ID ${message.id}`);
-              
+
               if (this.messageHandler) {
                 this.messageHandler(message);
               }
             }
           },
-          new NewMessage({ chats: [entity] })
+          new NewMessage({ chats: [config.telegram.channelUsername] })
         );
         logger.info(`Subscribed to new messages from ${config.telegram.channelUsername} (resolved entity)`);
       })
@@ -113,10 +113,10 @@ export class TelegramChannelMonitor {
         this.client.addEventHandler(
           async (event: NewMessageEvent) => {
             const message = event.message;
-            
+
             if (message instanceof Api.Message) {
               logger.info(`New message received: ID ${message.id} from chat ${message.chatId}`);
-              
+
               if (this.messageHandler) {
                 this.messageHandler(message);
               }
