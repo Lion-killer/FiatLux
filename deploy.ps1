@@ -439,57 +439,39 @@ function Deploy {
     }
     
     Write-INF "4. Stopping containers..."
-    SSH-Run 'cd /opt/fiatlux && docker compose down' | Out-Null
+    $downResult = SSH-Run 'cd /opt/fiatlux && docker compose down'
+    Write-Host $downResult -ForegroundColor Gray
     Write-OK "Done"
 
     Write-INF "5. Setting up .env..."
-    # Зберігаємо існуючі API credentials (API_ID, API_HASH, SESSION_STRING налаштовуються через web інтерфейс)
-    # Якщо .env вже існує — оновлюємо тільки базові поля, зберігаючи API credentials
-    $envScript = @"
-if [ -d /opt/fiatlux/.env ]; then
-  echo "Warning: /opt/fiatlux/.env is a directory, removing it."
-  rm -rf /opt/fiatlux/.env
-fi
+    # Перевірка що це таке перед початком
+    $preCheck = SSH-Run "ls -ld /opt/fiatlux/.env 2>/dev/null || echo 'not found'"
+    Write-INF "Current state: $preCheck"
 
-API_ID_VAL=""
-API_HASH_VAL=""
-SESSION_VAL=""
+    # Створюємо команду в один рядок для надійності
+    $cmd = "cd /opt/fiatlux && "
+    $cmd += "if [ -d .env ]; then echo 'Removing directory .env'; rm -rf .env; fi; "
+    $cmd += "API_ID_VAL=`$(grep '^API_ID=' .env 2>/dev/null | cut -d= -f2- || echo ''); "
+    $cmd += "API_HASH_VAL=`$(grep '^API_HASH=' .env 2>/dev/null | cut -d= -f2- || echo ''); "
+    $cmd += "SESSION_VAL=`$(grep '^SESSION_STRING=' .env 2>/dev/null | cut -d= -f2- || echo ''); "
+    $cmd += "printf 'CHANNEL_USERNAME=$($global:Config.Channel)\nPORT=$($global:Config.Port)\nHOST=0.0.0.0\nLOG_LEVEL=info\n' > .env; "
+    $cmd += "if [ -n \"`$API_ID_VAL\" ]; then printf 'API_ID=%s\n' \"`$API_ID_VAL\" >> .env; fi; "
+    $cmd += "if [ -n \"`$API_HASH_VAL\" ]; then printf 'API_HASH=%s\n' \"`$API_HASH_VAL\" >> .env; fi; "
+    $cmd += "if [ -n \"`$SESSION_VAL\" ]; then printf 'SESSION_STRING=%s\n' \"`$SESSION_VAL\" >> .env; fi; "
+    $cmd += "ls -ld .env; file .env 2>/dev/null || echo 'file command not found'"
 
-if [ -f /opt/fiatlux/.env ]; then
-  # Зберегти існуючі API credentials
-  API_ID_VAL=`$(grep '^API_ID=' /opt/fiatlux/.env | cut -d= -f2-)
-  API_HASH_VAL=`$(grep '^API_HASH=' /opt/fiatlux/.env | cut -d= -f2-)
-  SESSION_VAL=`$(grep '^SESSION_STRING=' /opt/fiatlux/.env | cut -d= -f2-)
-fi
-
-# Записати базові налаштування
-cat << EOF > /opt/fiatlux/.env
-CHANNEL_USERNAME=$($global:Config.Channel)
-PORT=$($global:Config.Port)
-HOST=0.0.0.0
-LOG_LEVEL=info
-EOF
-
-# Додати збережені API credentials якщо вони є
-if [ -n "`$API_ID_VAL" ]; then
-  printf 'API_ID=%s\n' "`$API_ID_VAL" >> /opt/fiatlux/.env
-fi
-if [ -n "`$API_HASH_VAL" ]; then
-  printf 'API_HASH=%s\n' "`$API_HASH_VAL" >> /opt/fiatlux/.env
-fi
-if [ -n "`$SESSION_VAL" ]; then
-  printf 'SESSION_STRING=%s\n' "`$SESSION_VAL" >> /opt/fiatlux/.env
-fi
-"@
-    SSH-Run $envScript | Out-Null
+    $envResult = SSH-Run $cmd
+    Write-Host $envResult -ForegroundColor Gray
     Write-OK "Done"
     
     Write-INF "6. Building image..."
-    SSH-Run 'cd /opt/fiatlux && docker compose build --no-cache' | Out-Null
+    $buildResult = SSH-Run 'cd /opt/fiatlux && docker compose build --no-cache'
+    Write-Host $buildResult -ForegroundColor Gray
     Write-OK "Done"
     
     Write-INF "7. Starting container..."
-    SSH-Run 'cd /opt/fiatlux && docker compose up -d' | Out-Null
+    $upResult = SSH-Run 'cd /opt/fiatlux && docker compose up -d'
+    Write-Host $upResult -ForegroundColor Gray
     Start-Sleep 3
     Write-OK "Done"
     
