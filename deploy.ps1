@@ -6,17 +6,17 @@ $ErrorActionPreference = "Continue"
 # Colors
 $colors = @{
     Success = "Green"
-    Error = "Red"
+    Error   = "Red"
     Warning = "Yellow"
-    Info = "Cyan"
-    Menu = "Magenta"
+    Info    = "Cyan"
+    Menu    = "Magenta"
 }
 
 # Global Config
 $global:Config = @{
-    Server = ""
-    Port = 8080
-    User = "root"
+    Server  = ""
+    Port    = 8080
+    User    = "root"
     RepoUrl = "https://github.com/Lion-killer/FiatLux.git"
     Channel = "pat_cherkasyoblenergo"
 }
@@ -73,10 +73,12 @@ function SSH-Run {
             if ($errText -match "Permission denied") {
                 Write-Host "SSH keys are not configured for this server." -ForegroundColor White
                 Write-Host "Return to main menu and select 'K' to setup SSH keys." -ForegroundColor Green
-            } elseif ($errText -match "Connection refused|Connection timed out|No route to host") {
+            }
+            elseif ($errText -match "Connection refused|Connection timed out|No route to host") {
                 Write-Host "Cannot connect to $($global:Config.Server)" -ForegroundColor White
                 Write-Host "Check that the server is online and accessible." -ForegroundColor Green
-            } else {
+            }
+            else {
                 Write-Host $errText -ForegroundColor White
             }
             Write-Host "========================================" -ForegroundColor Yellow
@@ -117,7 +119,8 @@ function Load-Config {
         }
         
         Write-OK "Configuration loaded"
-    } else {
+    }
+    else {
         Write-WRN "No configuration file found. Using defaults."
     }
 }
@@ -197,7 +200,8 @@ function Setup-SSHKeys {
                 Write-Host ""
                 Read-Host "Press Enter to continue"
                 return
-            } else {
+            }
+            else {
                 Write-WRN "SSH key not yet configured on server"
             }
         }
@@ -218,11 +222,13 @@ function Setup-SSHKeys {
             Remove-Item $keyFile -ErrorAction SilentlyContinue
             Remove-Item $pubKeyFile -ErrorAction SilentlyContinue
             $generateKey = $true
-        } elseif ($action -eq '0') {
+        }
+        elseif ($action -eq '0') {
             return
         }
         # Інакше (C або Enter) — переходимо до копіювання
-    } else {
+    }
+    else {
         $generateKey = $true
     }
     
@@ -247,7 +253,8 @@ function Setup-SSHKeys {
             Write-Host "Public key content:" -ForegroundColor $colors.Info
             Get-Content $pubKeyFile | Write-Host -ForegroundColor White
             Write-Host ""
-        } else {
+        }
+        else {
             Write-ERR 'Failed to generate SSH key'
             Read-Host "Press Enter"
             return
@@ -283,7 +290,8 @@ function Setup-SSHKeys {
                 # Через plink з паролем
                 $remoteCmd = "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$pubKey' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
                 $result = & $plinkPath -batch -pw $global:Config.Password $sshTarget $remoteCmd 2>&1
-            } else {
+            }
+            else {
                 # Створити тимчасовий .bat файл — надійно резолвить PATH і правильно передає аргументи
                 $batFile = Join-Path $env:TEMP "fiatux-ssh-copy.bat"
                 $batContent = "@echo off`r`nssh.exe -o StrictHostKeyChecking=no $sshTarget `"mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$pubKey' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys`""
@@ -297,10 +305,12 @@ function Setup-SSHKeys {
                 Write-Host ""
                 Write-Host 'You can now connect without password!' -ForegroundColor $colors.Success
                 Write-Host 'You can remove DEPLOY_PASSWORD from config file' -ForegroundColor $colors.Info
-            } else {
+            }
+            else {
                 Write-ERR 'Failed to copy SSH key'
             }
-        } catch {
+        }
+        catch {
             Write-ERR ('Error: ' + $_)
         }
     }
@@ -362,7 +372,8 @@ function Verify-Config {
     
     if ($test -like "*OK*") {
         Write-OK "SSH connection OK"
-    } else {
+    }
+    else {
         Write-ERR "SSH connection failed"
         Read-Host "Press Enter"
         return $false
@@ -373,7 +384,8 @@ function Verify-Config {
     
     if ($docker -like "*Docker*") {
         Write-OK "Docker installed"
-    } else {
+    }
+    else {
         Write-ERR "Docker not found"
         Read-Host "Press Enter"
         return $false
@@ -419,20 +431,29 @@ function Deploy {
     if ($exists -like "*yes*") {
         SSH-Run 'cd /opt/fiatlux && git pull' | Out-Null
         Write-OK "Updated"
-    } else {
+    }
+    else {
         $cloneCmd = 'cd /opt/fiatlux && git clone ' + $global:Config.RepoUrl + ' .'
         SSH-Run $cloneCmd | Out-Null
         Write-OK "Cloned"
     }
     
-    Write-INF "4. Setting up .env..."
+    Write-INF "4. Stopping containers..."
+    SSH-Run 'cd /opt/fiatlux && docker compose down' | Out-Null
+    Write-OK "Done"
+
+    Write-INF "5. Setting up .env..."
     # Зберігаємо існуючі API credentials (API_ID, API_HASH, SESSION_STRING налаштовуються через web інтерфейс)
     # Якщо .env вже існує — оновлюємо тільки базові поля, зберігаючи API credentials
     $envScript = @"
 if [ -d /opt/fiatlux/.env ]; then
-  # Видалити якщо це папка (може статися через Docker mount помилку)
+  echo "Warning: /opt/fiatlux/.env is a directory, removing it."
   rm -rf /opt/fiatlux/.env
 fi
+
+API_ID_VAL=""
+API_HASH_VAL=""
+SESSION_VAL=""
 
 if [ -f /opt/fiatlux/.env ]; then
   # Зберегти існуючі API credentials
@@ -440,8 +461,15 @@ if [ -f /opt/fiatlux/.env ]; then
   API_HASH_VAL=`$(grep '^API_HASH=' /opt/fiatlux/.env | cut -d= -f2-)
   SESSION_VAL=`$(grep '^SESSION_STRING=' /opt/fiatlux/.env | cut -d= -f2-)
 fi
+
 # Записати базові налаштування
-printf 'CHANNEL_USERNAME=$($global:Config.Channel)\nPORT=$($global:Config.Port)\nHOST=0.0.0.0\nLOG_LEVEL=info\n' > /opt/fiatlux/.env
+cat << EOF > /opt/fiatlux/.env
+CHANNEL_USERNAME=$($global:Config.Channel)
+PORT=$($global:Config.Port)
+HOST=0.0.0.0
+LOG_LEVEL=info
+EOF
+
 # Додати збережені API credentials якщо вони є
 if [ -n "`$API_ID_VAL" ]; then
   printf 'API_ID=%s\n' "`$API_ID_VAL" >> /opt/fiatlux/.env
@@ -454,10 +482,6 @@ if [ -n "`$SESSION_VAL" ]; then
 fi
 "@
     SSH-Run $envScript | Out-Null
-    Write-OK "Done"
-    
-    Write-INF "5. Stopping containers..."
-    SSH-Run 'cd /opt/fiatlux && docker compose down' | Out-Null
     Write-OK "Done"
     
     Write-INF "6. Building image..."
@@ -474,7 +498,8 @@ fi
     
     if ($status) {
         Write-OK "Container running"
-    } else {
+    }
+    else {
         Write-ERR "Container failed"
         $logs = SSH-Run 'cd /opt/fiatlux && docker compose logs --tail=10'
         Write-Host $logs -ForegroundColor $colors.Error
@@ -573,13 +598,13 @@ do {
         "1" { Setup-Config; Clear-Host; break }
         "2" { Show-Config; Clear-Host; break }
         "3" { Verify-Config; Clear-Host; break }
-        {$_ -eq "K" -or $_ -eq "k"} { Setup-SSHKeys; Clear-Host; break }
+        { $_ -eq "K" -or $_ -eq "k" } { Setup-SSHKeys; Clear-Host; break }
         "4" { Deploy; Clear-Host; break }
         "5" { Show-Status; Clear-Host; break }
         "6" { Update-Code; Clear-Host; break }
         "7" { Stop-Svc; Clear-Host; break }
         "8" { Show-Logs; Clear-Host; break }
-        {$_ -eq "D" -or $_ -eq "d"} { Delete-Container; Clear-Host; break }
+        { $_ -eq "D" -or $_ -eq "d" } { Delete-Container; Clear-Host; break }
         "0" { Write-Host 'Goodbye!' -ForegroundColor $colors.Success; exit }
         default { Write-ERR 'Invalid option'; Start-Sleep 1; Clear-Host }
     }
