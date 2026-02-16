@@ -707,8 +707,14 @@
         }
         let updateInterval = null;
 
+        let isFetching = false;
+
         async function fetchScheduleData() {
+            if (isFetching) return;
+            isFetching = true;
+
             try {
+                updateApiStatus('retrying');
                 const response = await fetch(`${API_BASE}/api/schedule/all`);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
@@ -721,7 +727,8 @@
                 const healthData = await healthResponse.json();
                 const lastParsed = (healthData.success && healthData.data) ? healthData.data.lastParsedPublishedAt : null;
 
-                updateApiStatus(true, lastParsed);
+                updateApiStatus('connected', lastParsed);
+                hideError();
 
                 if (!data.success || !data.data) {
                     throw new Error('Некоректна структура відповіді');
@@ -771,8 +778,13 @@
                 powerOffSchedule.sort((a, b) => a.start - b.start);
 
                 // Визначаємо унікальні черги та заповнюємо selector
+                const prevQueues = allQueues.join(',');
                 allQueues = [...new Set(powerOffSchedule.map(p => p.queue))].sort((a, b) => a - b);
-                populateQueueSelector();
+                
+                // Оновлюємо селектор лише якщо набір черг змінився
+                if (allQueues.join(',') !== prevQueues) {
+                    populateQueueSelector();
+                }
 
                 // Завантажуємо збережену чергу або вибираємо першу доступну
                 loadSavedQueue();
@@ -780,17 +792,24 @@
                     selectedQueue = String(allQueues[0]);
                     saveSelectedQueue(selectedQueue);
                 }
-                document.getElementById('queueSelector').value = selectedQueue;
+                
+                const selector = document.getElementById('queueSelector');
+                if (selector.value !== selectedQueue) {
+                    selector.value = selectedQueue;
+                }
 
-                // Додаємо слухач для зміни черги
-                document.getElementById('queueSelector').addEventListener('change', (e) => {
-                    selectedQueue = e.target.value;
-                    saveSelectedQueue(selectedQueue);
-                    initializeTimeline();
-                    initializeScheduleList();
-                    updateStatus();
-                    updateTimeMarker();
-                });
+                // Додаємо слухач для зміни черги, якщо ще не додано
+                if (!selector.dataset.initialized) {
+                    selector.addEventListener('change', (e) => {
+                        selectedQueue = e.target.value;
+                        saveSelectedQueue(selectedQueue);
+                        initializeTimeline();
+                        initializeScheduleList();
+                        updateStatus();
+                        updateTimeMarker();
+                    });
+                    selector.dataset.initialized = 'true';
+                }
 
                 initializeTimeline();
                 initializeScheduleList();
@@ -798,30 +817,35 @@
                 updateStatus();
                 updateTimeMarker();
 
-                // Очищуємо старий інтервал
+                // Очищуємо старий інтервал оновлення UI
                 if (updateInterval) clearInterval(updateInterval);
 
-                // Оновлюємо кожну секунду
+                // Оновлюємо UI кожну секунду
                 updateInterval = setInterval(() => {
                     updateCurrentTime();
                     updateStatus();
                     updateTimeMarker();
                 }, 1000);
 
+                // Наступне завантаження даних
+                setTimeout(fetchScheduleData, 30000);
+
             } catch (error) {
                 console.error('Помилка завантаження даних:', error);
-                updateApiStatus(false);
+                updateApiStatus('disconnected');
                 showError(`Помилка при завантаженні розкладів: ${error.message}`);
 
                 // Спробуємо знову через 5 секунд
                 setTimeout(fetchScheduleData, 5000);
+            } finally {
+                isFetching = false;
             }
         }
 
-        function updateApiStatus(connected, lastParsedPublishedAt = null) {
+        function updateApiStatus(state, lastParsedPublishedAt = null) {
             const apiStatus = document.getElementById('apiStatus');
 
-            if (connected) {
+            if (state === 'connected') {
                 let statusText = '✓ Підключено до сервера';
 
                 if (lastParsedPublishedAt) {
@@ -838,6 +862,9 @@
 
                 apiStatus.textContent = statusText;
                 apiStatus.className = 'api-status connected';
+            } else if (state === 'retrying') {
+                apiStatus.textContent = '... Перепідключення до сервера';
+                apiStatus.className = 'api-status no-data';
             } else {
                 apiStatus.textContent = '✗ Немає зв\'язку з сервером';
                 apiStatus.className = 'api-status disconnected';
@@ -1532,13 +1559,10 @@
             updateTimelineLabels();
         });
 
-        // Завантажуємо дані при завантаженні сторінки
         (async () => {
             const needsSetup = await checkSetupRequired();
             if (!needsSetup) {
                 fetchScheduleData();
-                // Оновлюємо дані кожні 30 секунд
-                setInterval(fetchScheduleData, 30000);
             }
         })();
     </script>
