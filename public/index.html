@@ -791,6 +791,11 @@
             errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
         }
 
+        function hideError() {
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.innerHTML = '';
+        }
+
         function updateCurrentTime() {
             const now = new Date();
             const options = { 
