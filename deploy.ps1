@@ -58,6 +58,9 @@ function SSH-Run {
     $sshTarget = "$($global:Config.User)@$($global:Config.Server)"
     $sshExe = "C:\Windows\System32\OpenSSH\ssh.exe"
     
+    # Режим UTF8 для коректного відображення символів
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+
     try {
         $result = & $sshExe -n -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=10 $sshTarget $Cmd 2>&1
         $exitCode = $LASTEXITCODE
@@ -439,19 +442,13 @@ function Deploy {
     }
     
     Write-INF "4. Stopping containers..."
-    $downResult = SSH-Run 'cd /opt/fiatlux && docker compose down'
-    Write-Host $downResult -ForegroundColor Gray
+    SSH-Run 'cd /opt/fiatlux && docker compose down' | Out-Null
     Write-OK "Done"
 
     Write-INF "5. Setting up .env..."
-    # Перевірка що це таке перед початком
-    $preCheck = SSH-Run "ls -ld /opt/fiatlux/.env 2>/dev/null || echo 'not found'"
-    Write-INF "Current state: $preCheck"
-
-    # Використовуємо Here-String для чистоти коду
     $bashScript = @"
 cd /opt/fiatlux
-if [ -d .env ]; then echo 'Removing accidental directory .env' && rm -rf .env; fi
+if [ -d .env ]; then rm -rf .env; fi
 API_ID_VAL=`$(grep '^API_ID=' .env 2>/dev/null | cut -d= -f2- || echo '')
 API_HASH_VAL=`$(grep '^API_HASH=' .env 2>/dev/null | cut -d= -f2- || echo '')
 SESSION_VAL=`$(grep '^SESSION_STRING=' .env 2>/dev/null | cut -d= -f2- || echo '')
@@ -459,23 +456,18 @@ printf 'CHANNEL_USERNAME=$($global:Config.Channel)\nPORT=$($global:Config.Port)\
 if [ -n "`$API_ID_VAL" ]; then printf 'API_ID=%s\n' "`$API_ID_VAL" >> .env; fi
 if [ -n "`$API_HASH_VAL" ]; then printf 'API_HASH=%s\n' "`$API_HASH_VAL" >> .env; fi
 if [ -n "`$SESSION_VAL" ]; then printf 'SESSION_STRING=%s\n' "`$SESSION_VAL" >> .env; fi
-ls -ld .env && file .env 2>/dev/null || echo 'Done'
 "@
 
-    # Перетворюємо в один рядок для SSH-Run (замінюємо переноси на ;)
     $sanitizedCmd = $bashScript -replace "`r`n", "; " -replace "`n", "; "
-    $envResult = SSH-Run $sanitizedCmd
-    Write-Host $envResult -ForegroundColor Gray
+    SSH-Run $sanitizedCmd | Out-Null
     Write-OK "Done"
     
     Write-INF "6. Building image..."
-    $buildResult = SSH-Run 'cd /opt/fiatlux && docker compose build --no-cache'
-    Write-Host $buildResult -ForegroundColor Gray
+    SSH-Run 'cd /opt/fiatlux && docker compose build --no-cache' | Out-Null
     Write-OK "Done"
     
     Write-INF "7. Starting container..."
-    $upResult = SSH-Run 'cd /opt/fiatlux && docker compose up -d'
-    Write-Host $upResult -ForegroundColor Gray
+    SSH-Run 'cd /opt/fiatlux && docker compose up -d' | Out-Null
     Start-Sleep 3
     Write-OK "Done"
     
