@@ -364,37 +364,7 @@ export class ApiServer {
       }, 2000);
     });
 
-    /**
-     * @openapi
-     * /api/info:
-     *   get:
-     *     summary: Get API information and available endpoints
-     *     tags: [System]
-     *     responses:
-     *       200:
-     *         description: API meta-information
-     */
-    // API info endpoint
-    this.app.get('/api/info', (_req: Request, res: Response) => {
-      res.json({
-        name: 'FiatLux - Telegram Channel Monitor',
-        version: '1.0.0',
-        description: 'Monitoring Cherkasyoblenergo power outage schedules',
-        endpoints: {
-          health: '/api/health',
-          current: '/api/schedule/current',
-          future: '/api/schedule/future',
-          all: '/api/schedule/all',
-          history: '/api/schedule/history',
-          messages: '/api/schedule/messages',
-          refresh: '/api/refresh (POST)',
-          debug: '/api/debug/dates',
-          setup: '/api/setup/*',
-          docs: '/api-docs',
-          web: '/',
-        },
-      });
-    });
+
   }
 
   private setupErrorHandling(): void {
