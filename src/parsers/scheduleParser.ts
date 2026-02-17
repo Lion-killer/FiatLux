@@ -327,7 +327,7 @@ export class ScheduleParser {
   /**
    * Parse a Telegram message into a Schedule object
    */
-  static parseMessage(message: Api.Message): Schedule | null {
+  static parseMessage(message: Api.Message, strict: boolean = true): Schedule | null {
     const text = message.message;
 
     if (!text || !this.isScheduleMessage(text)) {
@@ -372,9 +372,9 @@ export class ScheduleParser {
       const messageDate = new Date(message.date * 1000);
       const scheduleDate = new Date(date);
 
-      // Filter out schedules that are not for today or tomorrow
-      if (!this.isRelevantDate(scheduleDate)) {
-        logger.debug(`Skipping schedule for ${date} - not today or tomorrow`);
+      // Filter out schedules that are not for today or tomorrow (if strict)
+      if (strict && !this.isRelevantDate(scheduleDate)) {
+        logger.debug(`Skipping schedule for ${date} - not today or tomorrow (strict mode)`);
         return null;
       }
 
@@ -403,11 +403,11 @@ export class ScheduleParser {
   /**
    * Parse multiple messages
    */
-  static parseMessages(messages: Api.Message[]): Schedule[] {
+  static parseMessages(messages: Api.Message[], strict: boolean = true): Schedule[] {
     const schedules: Schedule[] = [];
 
     for (const message of messages) {
-      const schedule = this.parseMessage(message);
+      const schedule = this.parseMessage(message, strict);
       if (schedule) {
         schedules.push(schedule);
       }

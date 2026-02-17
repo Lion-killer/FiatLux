@@ -116,7 +116,7 @@ class FiatLuxService {
     try {
       logger.info('Loading recent messages...');
       const messages = await this.telegramMonitor.getRecentMessages(100);
-      const schedules = ScheduleParser.parseMessages(messages);
+      const schedules = ScheduleParser.parseMessages(messages, false); // strict = false for history
 
       logger.info(`Found ${schedules.length} schedules in recent messages`);
 
