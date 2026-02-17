@@ -60,6 +60,9 @@ curl http://localhost:8080/api/schedule/current
 
 # Отримання всіх графіків
 curl http://localhost:8080/api/schedule/all
+
+# Інтерактивна документація (рекомендовано)
+# Відкрийте у браузері: http://localhost:8080/docs
 ```
 
 ## 7. Примусове оновлення даних

@@ -86,7 +86,9 @@ export class ScheduleParser {
    * Extract date from message text
    */
   static extractDate(text: string): string | null {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const lowerText = text.toLowerCase();
+    const today = new Date();
 
     // Ukrainian months
     const months: Record<string, number> = {
@@ -104,33 +106,69 @@ export class ScheduleParser {
       'грудня': 12, 'грудень': 12,
     };
 
+    // Контекстні маркери, що вказують на дату графіку
+    const dateMarkers = ['на', 'графік на', 'станом на'];
+
+    // 1. Пошук у перших трьох рядках (де зазвичай заголовок з датою)
+    for (const line of lines.slice(0, 3)) {
+      const lowerLine = line.toLowerCase();
+
+      // Шукаємо конструкцію "[маркер] DD [місяць]"
+      for (const marker of dateMarkers) {
+        for (const [monthName, monthNum] of Object.entries(months)) {
+          const pattern = new RegExp(`${marker}\\s+(\\d{1,2})\\s+${monthName}`, 'i');
+          const match = lowerLine.match(pattern);
+          if (match) {
+            const day = match[1].padStart(2, '0');
+            const month = monthNum.toString().padStart(2, '0');
+            const year = today.getFullYear();
+            return `${year}-${month}-${day}`;
+          }
+        }
+      }
+
+      // Шукаємо конструкцію "[маркер] DD.MM"
+      for (const marker of dateMarkers) {
+        const pattern = new RegExp(`${marker}\\s+(\\d{1,2})\\.(\\d{1,2})(?:\\.(\\d{4}))?`, 'i');
+        const match = lowerLine.match(pattern);
+        if (match) {
+          const day = match[1].padStart(2, '0');
+          const month = match[2].padStart(2, '0');
+          const year = match[3] || today.getFullYear().toString();
+          return `${year}-${month}-${day}`;
+        }
+      }
+    }
+
+    // 2. Пошук у всьому тексті, але з виключенням фраз про оновлення
+    const filteredText = text.replace(/(?:наступне оновлення|оновлено о|оновлення)\s+[^]*$/gi, '');
+    const lowerFiltered = filteredText.toLowerCase();
+
     // Pattern: "15 лютого", "15 лютий"
     for (const [monthName, monthNum] of Object.entries(months)) {
       const pattern = new RegExp(`(\\d{1,2})\\s+${monthName}`, 'i');
-      const match = lowerText.match(pattern);
+      const match = lowerFiltered.match(pattern);
       if (match) {
         const day = match[1].padStart(2, '0');
         const month = monthNum.toString().padStart(2, '0');
-        const year = new Date().getFullYear();
+        const year = today.getFullYear();
         return `${year}-${month}-${day}`;
       }
     }
 
     // Pattern: DD.MM.YYYY or DD.MM
     const datePattern = /(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?/g;
-    const matches = [...text.matchAll(datePattern)];
+    const matches = [...filteredText.matchAll(datePattern)];
 
     if (matches.length > 0) {
       const match = matches[0];
       const day = match[1].padStart(2, '0');
       const month = match[2].padStart(2, '0');
-      const year = match[3] || new Date().getFullYear().toString();
+      const year = match[3] || today.getFullYear().toString();
       return `${year}-${month}-${day}`;
     }
 
-    // Try to find day of week and relative dates
-    const today = new Date();
-
+    // 3. Відносні дати
     if (lowerText.includes('сьогодні')) {
       return getLocalDateString(today);
     }
@@ -141,7 +179,7 @@ export class ScheduleParser {
       return getLocalDateString(tomorrow);
     }
 
-    // Return today's date as fallback
+    // Fallback до сьогоднішньої дати
     return getLocalDateString(today);
   }
 

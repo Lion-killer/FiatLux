@@ -7,6 +7,8 @@ import { ScheduleParser } from '../parsers/scheduleParser';
 import { logger } from '../utils/logger';
 import { EnvManager } from '../utils/envManager';
 import { TelegramAuthManager } from '../telegram/authManager';
+import swaggerUi from 'swagger-ui-express';
+import swaggerJsdoc from 'swagger-jsdoc';
 
 export class ApiServer {
   private app: express.Application;
@@ -59,36 +61,154 @@ export class ApiServer {
   }
 
   private setupRoutes(): void {
+    // Swagger Documentation
+    const swaggerOptions = {
+      definition: {
+        openapi: '3.0.0',
+        info: {
+          title: 'FiatLux API',
+          version: '1.0.0',
+          description: 'API for monitoring Cherkasyoblenergo power outage schedules',
+        },
+      },
+      apis: [__filename],
+    };
+
+    const swaggerDocs = swaggerJsdoc(swaggerOptions);
+    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+    // Redirect /docs to /api-docs for convenience
+    this.app.get('/docs', (_req, res) => res.redirect('/api-docs'));
+
+    /**
+     * @openapi
+     * /api/health:
+     *   get:
+     *     summary: Get service health status
+     *     tags: [System]
+     *     responses:
+     *       200:
+     *         description: Service health information
+     */
     // Health check
     this.app.get('/api/health', async (req: Request, res: Response) => {
       await this.handleHealthCheck(req, res);
     });
 
+    /**
+     * @openapi
+     * /api/schedule/current:
+     *   get:
+     *     summary: Get currently active schedule
+     *     tags: [Schedules]
+     *     responses:
+     *       200:
+     *         description: Current schedule data
+     */
     // Get current schedule
     this.app.get('/api/schedule/current', async (req: Request, res: Response) => {
       await this.handleGetCurrent(req, res);
     });
 
+    /**
+     * @openapi
+     * /api/schedule/future:
+     *   get:
+     *     summary: Get future (upcoming) schedule
+     *     tags: [Schedules]
+     *     responses:
+     *       200:
+     *         description: Future schedule data
+     */
     // Get future schedule
     this.app.get('/api/schedule/future', async (req: Request, res: Response) => {
       await this.handleGetFuture(req, res);
     });
 
+    /**
+     * @openapi
+     * /api/schedule/all:
+     *   get:
+     *     summary: Get all available schedules
+     *     tags: [Schedules]
+     *     responses:
+     *       200:
+     *         description: List of all schedules
+     */
     // Get all schedules
     this.app.get('/api/schedule/all', async (req: Request, res: Response) => {
       await this.handleGetAll(req, res);
     });
 
-    // Get history
+    /**
+     * @openapi
+     * /api/schedule/history:
+     *   get:
+     *     summary: Get history of parsed messages (today and tomorrow)
+     *     tags: [History]
+     *     parameters:
+     *       - in: query
+     *         name: limit
+     *         schema:
+     *           type: integer
+     *           default: 10
+     *         description: Number of records to return
+     *     responses:
+     *       200:
+     *         description: History of messages
+     */
+    // Get history (relevant only)
     this.app.get('/api/schedule/history', async (req: Request, res: Response) => {
       await this.handleGetHistory(req, res);
     });
 
+    /**
+     * @openapi
+     * /api/schedule/messages:
+     *   get:
+     *     summary: Get all parsed schedule messages (raw history)
+     *     tags: [History]
+     *     parameters:
+     *       - in: query
+     *         name: limit
+     *         schema:
+     *           type: integer
+     *           default: 50
+     *         description: Number of records to return
+     *     responses:
+     *       200:
+     *         description: List of parsed messages
+     */
+    // Get all messages
+    this.app.get('/api/schedule/messages', async (req: Request, res: Response) => {
+      await this.handleGetMessages(req, res);
+    });
+
+    /**
+     * @openapi
+     * /api/refresh:
+     *   post:
+     *     summary: Force manual refresh/parsing of Telegram messages
+     *     tags: [System]
+     *     responses:
+     *       200:
+     *         description: Refresh results
+     */
     // Refresh schedules
     this.app.post('/api/refresh', async (req: Request, res: Response) => {
       await this.handleRefresh(req, res);
     });
 
+    /**
+     * @openapi
+     * /api/debug/dates:
+     *   get:
+     *     summary: Debug endpoint for system date detection
+     *     tags: [Debug]
+     *     responses:
+     *       200:
+     *         description: System date and time info
+     */
     // Debug endpoint to check system date detection
     this.app.get('/api/debug/dates', (_req: Request, res: Response) => {
       const today = new Date();
@@ -106,27 +226,129 @@ export class ApiServer {
       });
     });
 
+    /**
+     * @openapi
+     * /api/setup/status:
+     *   get:
+     *     summary: Get setup and configuration status
+     *     tags: [Setup]
+     *     responses:
+     *       200:
+     *         description: Configuration status
+     */
     // Setup endpoints
     this.app.get('/api/setup/status', async (req: Request, res: Response) => {
       await this.handleSetupStatus(req, res);
     });
 
+    /**
+     * @openapi
+     * /api/setup/credentials:
+     *   post:
+     *     summary: Save Telegram API credentials
+     *     tags: [Setup]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               apiId:
+     *                 type: string
+     *               apiHash:
+     *                 type: string
+     *     responses:
+     *       200:
+     *         description: Credentials saved successfully
+     */
     this.app.post('/api/setup/credentials', async (req: Request, res: Response) => {
       await this.handleSaveCredentials(req, res);
     });
 
+    /**
+     * @openapi
+     * /api/setup/auth/start:
+     *   post:
+     *     summary: Start Telegram authentication process
+     *     tags: [Setup]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               phoneNumber:
+     *                 type: string
+     *     responses:
+     *       200:
+     *         description: Auth process started
+     */
     this.app.post('/api/setup/auth/start', async (req: Request, res: Response) => {
       await this.handleAuthStart(req, res);
     });
 
+    /**
+     * @openapi
+     * /api/setup/auth/code:
+     *   post:
+     *     summary: Submit Telegram verification code
+     *     tags: [Setup]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               sessionId:
+     *                 type: string
+     *               code:
+     *                 type: string
+     *     responses:
+     *       200:
+     *         description: Code submitted
+     */
     this.app.post('/api/setup/auth/code', async (req: Request, res: Response) => {
       await this.handleAuthCode(req, res);
     });
 
+    /**
+     * @openapi
+     * /api/setup/auth/password:
+     *   post:
+     *     summary: Submit Telegram 2FA password
+     *     tags: [Setup]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               sessionId:
+     *                 type: string
+     *               password:
+     *                 type: string
+     *     responses:
+     *       200:
+     *         description: Password submitted
+     */
     this.app.post('/api/setup/auth/password', async (req: Request, res: Response) => {
       await this.handleAuthPassword(req, res);
     });
 
+    /**
+     * @openapi
+     * /api/setup/restart:
+     *   post:
+     *     summary: Restart service after setup completion
+     *     tags: [Setup]
+     *     responses:
+     *       200:
+     *         description: Service restarting
+     */
     // Перезапуск сервісу після завершення setup (Docker перезапустить контейнер)
     this.app.post('/api/setup/restart', (_req: Request, res: Response) => {
       logger.info('Restart requested after setup completion');
@@ -142,6 +364,16 @@ export class ApiServer {
       }, 2000);
     });
 
+    /**
+     * @openapi
+     * /api/info:
+     *   get:
+     *     summary: Get API information and available endpoints
+     *     tags: [System]
+     *     responses:
+     *       200:
+     *         description: API meta-information
+     */
     // API info endpoint
     this.app.get('/api/info', (_req: Request, res: Response) => {
       res.json({
@@ -154,8 +386,11 @@ export class ApiServer {
           future: '/api/schedule/future',
           all: '/api/schedule/all',
           history: '/api/schedule/history',
+          messages: '/api/schedule/messages',
           refresh: '/api/refresh (POST)',
           debug: '/api/debug/dates',
+          setup: '/api/setup/*',
+          docs: '/api-docs',
           web: '/',
         },
       });
@@ -284,6 +519,28 @@ export class ApiServer {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const history = await this.dataManager.getHistory(limit);
+
+      const response: ApiResponse = {
+        success: true,
+        data: history,
+        timestamp: new Date().toISOString(),
+      };
+
+      res.json(response);
+    } catch (error) {
+      const err = error as Error;
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  private async handleGetMessages(req: Request, res: Response): Promise<void> {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const history = await this.dataManager.getRawHistory(limit);
 
       const response: ApiResponse = {
         success: true,

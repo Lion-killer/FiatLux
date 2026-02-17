@@ -35,7 +35,7 @@ export class DataManager {
   async saveSchedule(schedule: Schedule): Promise<boolean> {
     // Check if schedule already exists
     const existingIndex = this.schedules.findIndex(s => s.id === schedule.id);
-    
+
     if (existingIndex >= 0) {
       // Update existing schedule
       this.schedules[existingIndex] = schedule;
@@ -45,7 +45,7 @@ export class DataManager {
       // Add new schedule
       this.schedules.push(schedule);
       logger.info(`Added new schedule: ${schedule.id}`);
-      
+
       // Archive older schedules
       this.archiveOlderSchedules(schedule);
       return true;
@@ -58,29 +58,29 @@ export class DataManager {
   private archiveOlderSchedules(newSchedule: Schedule): void {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const newDate = new Date(newSchedule.date);
     newDate.setHours(0, 0, 0, 0);
-    
+
     for (const schedule of this.schedules) {
       if (schedule.id === newSchedule.id) continue;
       if (schedule.archived) continue;
-      
+
       const scheduleDate = new Date(schedule.date);
       scheduleDate.setHours(0, 0, 0, 0);
-      
+
       // Archive schedules from the past
       if (scheduleDate < today) {
         schedule.archived = true;
         logger.info(`Archived past schedule: ${schedule.id} (${schedule.date})`);
         continue;
       }
-      
+
       // Archive older schedules for the same date
       if (schedule.date === newSchedule.date) {
         const schedulePublished = new Date(schedule.publishedAt);
         const newPublished = new Date(newSchedule.publishedAt);
-        
+
         if (schedulePublished < newPublished) {
           schedule.archived = true;
           logger.info(`Archived older schedule for same date: ${schedule.id}`);
@@ -95,16 +95,16 @@ export class DataManager {
   private isRelevantSchedule(schedule: Schedule): boolean {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     const dayAfterTomorrow = new Date(today);
     dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
-    
+
     const scheduleDate = new Date(schedule.date);
     scheduleDate.setHours(0, 0, 0, 0);
-    
+
     return scheduleDate >= today && scheduleDate < dayAfterTomorrow;
   }
 
@@ -114,15 +114,15 @@ export class DataManager {
   async getCurrentSchedule(): Promise<Schedule | null> {
     const today = new Date();
     const todayStr = getLocalDateString(today);
-    
+
     const current = this.schedules
       .filter(s => {
-        return s.date === todayStr && 
-               !s.archived && 
-               this.isRelevantSchedule(s);
+        return s.date === todayStr &&
+          !s.archived &&
+          this.isRelevantSchedule(s);
       })
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-    
+
     return current[0] || null;
   }
 
@@ -133,15 +133,15 @@ export class DataManager {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = getLocalDateString(tomorrow);
-    
+
     const future = this.schedules
       .filter(s => {
-        return s.date === tomorrowStr && 
-               !s.archived && 
-               this.isRelevantSchedule(s);
+        return s.date === tomorrowStr &&
+          !s.archived &&
+          this.isRelevantSchedule(s);
       })
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-    
+
     return future[0] || null;
   }
 
@@ -153,7 +153,7 @@ export class DataManager {
       this.getCurrentSchedule(),
       this.getFutureSchedule(),
     ]);
-    
+
     return { current, future };
   }
 
@@ -163,6 +163,15 @@ export class DataManager {
   async getHistory(limit: number = 10): Promise<Schedule[]> {
     return this.schedules
       .filter(s => this.isRelevantSchedule(s))
+      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+      .slice(0, limit);
+  }
+
+  /**
+   * Get all schedule messages (no relevance filtering)
+   */
+  async getRawHistory(limit: number = 50): Promise<Schedule[]> {
+    return this.schedules
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
       .slice(0, limit);
   }
@@ -181,11 +190,11 @@ export class DataManager {
     const initialCount = this.schedules.length;
     this.schedules = this.schedules.filter(s => !s.archived);
     const removedCount = initialCount - this.schedules.length;
-    
+
     if (removedCount > 0) {
       logger.info(`Cleaned up ${removedCount} archived schedules`);
     }
-    
+
     return removedCount;
   }
 

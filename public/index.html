@@ -1048,6 +1048,7 @@
                 today.setHours(0, 0, 0, 0);
                 const nextDay = new Date(today);
                 nextDay.setDate(today.getDate() + 1);
+
                 if (scheduleDays.includes(nextDay.getTime())) {
                     // Кінець наступного дня (00:00)
                     const endOfNextDay = new Date(nextDay);
