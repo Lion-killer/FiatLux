@@ -140,18 +140,21 @@ export class ScheduleParser {
       }
     }
 
+
     // 2. Пошук у всьому тексті, але з виключенням фраз про оновлення
     const filteredText = text.replace(/(?:наступне оновлення|оновлено о|оновлення)\s+[^]*$/gi, '');
     const lowerFiltered = filteredText.toLowerCase();
 
-    // Pattern: "15 лютого", "15 лютий"
+    // Pattern: "15 лютого", "15 лютий" (шукаємо всі входження, не тільки з маркерами)
+    let foundDate: string | null = null;
     for (const [monthName, monthNum] of Object.entries(months)) {
-      const pattern = new RegExp(`(\\d{1,2})\\s+${monthName}`, 'i');
-      const match = lowerFiltered.match(pattern);
-      if (match) {
+      const pattern = new RegExp(`(\\d{1,2})\\s+${monthName}`, 'gi');
+      let match;
+      while ((match = pattern.exec(lowerFiltered)) !== null) {
         const day = match[1].padStart(2, '0');
         const month = monthNum.toString().padStart(2, '0');
         const year = today.getFullYear();
+        // Повертаємо першу знайдену дату
         return `${year}-${month}-${day}`;
       }
     }
