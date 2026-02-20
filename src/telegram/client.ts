@@ -2,12 +2,11 @@ import { TelegramClient } from 'telegram';
 import { StringSession } from 'telegram/sessions';
 import { NewMessage, NewMessageEvent } from 'telegram/events';
 import { Api } from 'telegram/tl';
-// @ts-ignore - removed input dependency for strictly web auth
-// import input from 'input';
+import type { ITelegramMonitor } from '../types';
 import config from '../config';
 import { logger } from '../utils/logger';
 
-export class TelegramChannelMonitor {
+export class TelegramChannelMonitor implements ITelegramMonitor {
   private client: TelegramClient;
   private connected: boolean = false;
   private session: StringSession;

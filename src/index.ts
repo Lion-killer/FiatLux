@@ -5,6 +5,7 @@ import { ApiServer } from './api/server';
 import { EnvManager } from './utils/envManager';
 import config from './config';
 import { logger } from './utils/logger';
+import type { ITelegramMonitor } from './types';
 import { Api } from 'telegram/tl';
 
 class FiatLuxService {
@@ -21,14 +22,13 @@ class FiatLuxService {
     this.dataManager = new DataManager();
     this.envManager = new EnvManager();
 
-    // Create a placeholder monitor for API server (will be replaced if credentials exist)
-    const placeholderMonitor = {
+    const placeholderMonitor: ITelegramMonitor = {
       isConnected: () => this.isTelegramConnected,
       connect: async () => { },
       disconnect: async () => { },
       getRecentMessages: async () => [],
       subscribeToNewMessages: () => { },
-    } as any;
+    };
 
     this.apiServer = new ApiServer(this.dataManager, placeholderMonitor);
   }
@@ -60,9 +60,7 @@ class FiatLuxService {
       logger.info(`Monitoring channel: ${config.telegram.channelUsername}`);
 
       this.telegramMonitor = new TelegramChannelMonitor();
-
-      // Update API server with real monitor
-      (this.apiServer as any).telegramMonitor = this.telegramMonitor;
+      this.apiServer.setTelegramMonitor(this.telegramMonitor);
 
       // Start API server EARLY to ensure web interface is available
       this.apiServer.listen(config.server.port, config.server.host);

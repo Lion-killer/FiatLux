@@ -1,8 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
-import { ApiResponse, HealthStatus } from '../types';
+import { ApiResponse, HealthStatus, ITelegramMonitor } from '../types';
 import { DataManager } from '../storage/dataManager';
-import { TelegramChannelMonitor } from '../telegram/client';
 import { ScheduleParser } from '../parsers/scheduleParser';
 import { logger } from '../utils/logger';
 import { EnvManager } from '../utils/envManager';
@@ -13,13 +12,13 @@ import swaggerJsdoc from 'swagger-jsdoc';
 export class ApiServer {
   private app: express.Application;
   private dataManager: DataManager;
-  private telegramMonitor: TelegramChannelMonitor;
+  private telegramMonitor: ITelegramMonitor;
   private envManager: EnvManager;
   private authManager: TelegramAuthManager;
   private startTime: number = Date.now();
   private lastMessageCheck?: string;
 
-  constructor(dataManager: DataManager, telegramMonitor: TelegramChannelMonitor) {
+  constructor(dataManager: DataManager, telegramMonitor: ITelegramMonitor) {
     this.app = express();
     this.dataManager = dataManager;
     this.telegramMonitor = telegramMonitor;
@@ -31,6 +30,11 @@ export class ApiServer {
 
     // Clean up old auth sessions every 5 minutes
     setInterval(() => this.authManager.cleanupOldSessions(), 5 * 60 * 1000);
+  }
+
+  /** Replace the Telegram monitor (e.g. placeholder → real client after connect) */
+  setTelegramMonitor(monitor: ITelegramMonitor): void {
+    this.telegramMonitor = monitor;
   }
 
   private setupMiddleware(): void {

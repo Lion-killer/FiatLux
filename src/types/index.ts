@@ -2,6 +2,17 @@
  * Type definitions for FiatLux
  */
 
+import type { Api } from 'telegram/tl';
+
+/** Telegram channel monitor contract (real implementation or placeholder) */
+export interface ITelegramMonitor {
+  isConnected(): boolean;
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
+  getRecentMessages(limit?: number): Promise<Api.Message[]>;
+  subscribeToNewMessages(handler: (message: Api.Message) => void): void;
+}
+
 export interface Schedule {
   id: string;
   type: 'current' | 'future';
@@ -31,7 +42,7 @@ export interface ScheduleData {
   lastUpdated: string;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
