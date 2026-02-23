@@ -65,19 +65,28 @@ export class ApiServer {
   }
 
   private setupRoutes(): void {
-    // Swagger Documentation
+    /**
+     * @swaggerOptions
+     * Swagger конфігурація для FiatLux API.
+     * Включає OpenAPI 3.0.0, базову інформацію про сервіс та автоматичне сканування JSDoc-коментарів у цьому файлі.
+     */
     const swaggerOptions = {
       definition: {
         openapi: '3.0.0',
         info: {
           title: 'FiatLux API',
           version: '1.0.0',
-          description: 'API for monitoring Cherkasyoblenergo power outage schedules',
+          description: 'API для моніторингу графіків відключень Черкасиобленерго',
         },
       },
       apis: [__filename],
     };
 
+    /**
+     * @swaggerDocs
+     * Swagger документація генерується автоматично на основі JSDoc-коментарів.
+     * Доступна за адресою /api-docs.
+     */
     const swaggerDocs = swaggerJsdoc(swaggerOptions);
     this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
@@ -88,11 +97,16 @@ export class ApiServer {
      * @openapi
      * /api/health:
      *   get:
-     *     summary: Get service health status
+     *     summary: Отримати статус здоров'я сервісу
+     *     description: Повертає інформацію про стан сервісу, підключення до Telegram та кількість графіків.
      *     tags: [System]
      *     responses:
      *       200:
-     *         description: Service health information
+     *         description: Інформація про здоров'я сервісу
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/HealthStatus'
      */
     // Health check
     this.app.get('/api/health', async (req: Request, res: Response) => {
@@ -103,11 +117,16 @@ export class ApiServer {
      * @openapi
      * /api/schedule/current:
      *   get:
-     *     summary: Get currently active schedule
+     *     summary: Отримати поточний графік відключень
+     *     description: Повертає актуальний графік для сьогоднішнього дня.
      *     tags: [Schedules]
      *     responses:
      *       200:
-     *         description: Current schedule data
+     *         description: Дані поточного графіку
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Schedule'
      */
     // Get current schedule
     this.app.get('/api/schedule/current', async (req: Request, res: Response) => {
@@ -118,11 +137,16 @@ export class ApiServer {
      * @openapi
      * /api/schedule/future:
      *   get:
-     *     summary: Get future (upcoming) schedule
+     *     summary: Отримати майбутній графік відключень
+     *     description: Повертає графік на наступний день.
      *     tags: [Schedules]
      *     responses:
      *       200:
-     *         description: Future schedule data
+     *         description: Дані майбутнього графіку
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Schedule'
      */
     // Get future schedule
     this.app.get('/api/schedule/future', async (req: Request, res: Response) => {
@@ -133,11 +157,18 @@ export class ApiServer {
      * @openapi
      * /api/schedule/all:
      *   get:
-     *     summary: Get all available schedules
+     *     summary: Отримати всі доступні графіки
+     *     description: Повертає список усіх розпарсених графіків.
      *     tags: [Schedules]
      *     responses:
      *       200:
-     *         description: List of all schedules
+     *         description: Список всіх графіків
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: array
+     *               items:
+     *                 $ref: '#/components/schemas/Schedule'
      */
     // Get all schedules
     this.app.get('/api/schedule/all', async (req: Request, res: Response) => {
@@ -148,7 +179,8 @@ export class ApiServer {
      * @openapi
      * /api/schedule/history:
      *   get:
-     *     summary: Get history of parsed messages (today and tomorrow)
+     *     summary: Історія розпарсених повідомлень (сьогодні і завтра)
+     *     description: Повертає історію розпарсених повідомлень за обраний період.
      *     tags: [History]
      *     parameters:
      *       - in: query
@@ -156,10 +188,16 @@ export class ApiServer {
      *         schema:
      *           type: integer
      *           default: 10
-     *         description: Number of records to return
+     *         description: Кількість записів для повернення
      *     responses:
      *       200:
-     *         description: History of messages
+     *         description: Історія повідомлень
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: array
+     *               items:
+     *                 $ref: '#/components/schemas/Schedule'
      */
     // Get history (relevant only)
     this.app.get('/api/schedule/history', async (req: Request, res: Response) => {
@@ -170,7 +208,8 @@ export class ApiServer {
      * @openapi
      * /api/schedule/messages:
      *   get:
-     *     summary: Get all parsed schedule messages (raw history)
+     *     summary: Отримати всі розпарсені повідомлення (сирий історичний список)
+     *     description: Повертає всі розпарсені повідомлення Telegram з історії.
      *     tags: [History]
      *     parameters:
      *       - in: query
@@ -178,10 +217,16 @@ export class ApiServer {
      *         schema:
      *           type: integer
      *           default: 50
-     *         description: Number of records to return
+     *         description: Кількість записів для повернення
      *     responses:
      *       200:
-     *         description: List of parsed messages
+     *         description: Список розпарсених повідомлень
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: array
+     *               items:
+     *                 $ref: '#/components/schemas/Schedule'
      */
     // Get all messages
     this.app.get('/api/schedule/messages', async (req: Request, res: Response) => {
@@ -192,11 +237,21 @@ export class ApiServer {
      * @openapi
      * /api/refresh:
      *   post:
-     *     summary: Force manual refresh/parsing of Telegram messages
+     *     summary: Примусовий ручний оновлення/парсинг Telegram повідомлень
+     *     description: Запускає ручний парсинг останніх повідомлень Telegram та оновлює графіки.
      *     tags: [System]
      *     responses:
      *       200:
-     *         description: Refresh results
+     *         description: Результати оновлення
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 messagesChecked:
+     *                   type: integer
+     *                 schedulesParsed:
+     *                   type: integer
      */
     // Refresh schedules
     this.app.post('/api/refresh', async (req: Request, res: Response) => {
@@ -207,11 +262,25 @@ export class ApiServer {
      * @openapi
      * /api/debug/dates:
      *   get:
-     *     summary: Debug endpoint for system date detection
+     *     summary: Debug-ендпоінт для перевірки системної дати
+     *     description: Повертає інформацію про системну дату, локальний час, сьогодні та завтра.
      *     tags: [Debug]
      *     responses:
      *       200:
-     *         description: System date and time info
+     *         description: Інформація про дату та час
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 systemDate:
+     *                   type: string
+     *                 localTime:
+     *                   type: string
+     *                 todayDetected:
+     *                   type: string
+     *                 tomorrowDetected:
+     *                   type: string
      */
     // Debug endpoint to check system date detection
     this.app.get('/api/debug/dates', (_req: Request, res: Response) => {
@@ -234,11 +303,25 @@ export class ApiServer {
      * @openapi
      * /api/setup/status:
      *   get:
-     *     summary: Get setup and configuration status
+     *     summary: Отримати статус налаштування та конфігурації
+     *     description: Повертає статус налаштування Telegram API та сесії.
      *     tags: [Setup]
      *     responses:
      *       200:
-     *         description: Configuration status
+     *         description: Статус конфігурації
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 configured:
+     *                   type: boolean
+     *                 hasApiCredentials:
+     *                   type: boolean
+     *                 hasSession:
+     *                   type: boolean
+     *                 apiId:
+     *                   type: string
      */
     // Setup endpoints
     this.app.get('/api/setup/status', async (req: Request, res: Response) => {
@@ -249,7 +332,8 @@ export class ApiServer {
      * @openapi
      * /api/setup/credentials:
      *   post:
-     *     summary: Save Telegram API credentials
+     *     summary: Зберегти Telegram API credentials
+     *     description: Зберігає API_ID та API_HASH для Telegram API.
      *     tags: [Setup]
      *     requestBody:
      *       required: true
@@ -264,7 +348,14 @@ export class ApiServer {
      *                 type: string
      *     responses:
      *       200:
-     *         description: Credentials saved successfully
+     *         description: Credentials збережено успішно
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
      */
     this.app.post('/api/setup/credentials', async (req: Request, res: Response) => {
       await this.handleSaveCredentials(req, res);
@@ -274,7 +365,8 @@ export class ApiServer {
      * @openapi
      * /api/setup/auth/start:
      *   post:
-     *     summary: Start Telegram authentication process
+     *     summary: Почати процес Telegram автентифікації
+     *     description: Запускає автентифікацію Telegram за номером телефону.
      *     tags: [Setup]
      *     requestBody:
      *       required: true
@@ -287,7 +379,7 @@ export class ApiServer {
      *                 type: string
      *     responses:
      *       200:
-     *         description: Auth process started
+     *         description: Процес автентифікації запущено
      */
     this.app.post('/api/setup/auth/start', async (req: Request, res: Response) => {
       await this.handleAuthStart(req, res);
@@ -297,7 +389,8 @@ export class ApiServer {
      * @openapi
      * /api/setup/auth/code:
      *   post:
-     *     summary: Submit Telegram verification code
+     *     summary: Ввести Telegram код підтвердження
+     *     description: Надсилає код підтвердження для Telegram сесії.
      *     tags: [Setup]
      *     requestBody:
      *       required: true
@@ -312,7 +405,7 @@ export class ApiServer {
      *                 type: string
      *     responses:
      *       200:
-     *         description: Code submitted
+     *         description: Код підтвердження прийнято
      */
     this.app.post('/api/setup/auth/code', async (req: Request, res: Response) => {
       await this.handleAuthCode(req, res);
@@ -322,7 +415,8 @@ export class ApiServer {
      * @openapi
      * /api/setup/auth/password:
      *   post:
-     *     summary: Submit Telegram 2FA password
+     *     summary: Ввести Telegram 2FA пароль
+     *     description: Надсилає пароль для двофакторної автентифікації Telegram.
      *     tags: [Setup]
      *     requestBody:
      *       required: true
@@ -337,7 +431,7 @@ export class ApiServer {
      *                 type: string
      *     responses:
      *       200:
-     *         description: Password submitted
+     *         description: Пароль прийнято
      */
     this.app.post('/api/setup/auth/password', async (req: Request, res: Response) => {
       await this.handleAuthPassword(req, res);
@@ -347,11 +441,19 @@ export class ApiServer {
      * @openapi
      * /api/setup/restart:
      *   post:
-     *     summary: Restart service after setup completion
+     *     summary: Перезапустити сервіс після завершення налаштування
+     *     description: Перезапускає сервіс для застосування нових налаштувань Telegram.
      *     tags: [Setup]
      *     responses:
      *       200:
-     *         description: Service restarting
+     *         description: Сервіс перезапускається
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 message:
+     *                   type: string
      */
     // Перезапуск сервісу після завершення setup (Docker перезапустить контейнер)
     this.app.post('/api/setup/restart', (_req: Request, res: Response) => {
