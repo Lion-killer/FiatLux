@@ -78,6 +78,49 @@ export class ApiServer {
           version: '1.0.0',
           description: 'API для моніторингу графіків відключень Черкасиобленерго',
         },
+        components: {
+          schemas: {
+            HealthStatus: {
+              type: 'object',
+              properties: {
+                status: { type: 'string', description: 'Статус сервісу' },
+                uptime: { type: 'integer', description: 'Час роботи сервісу (секунди)' },
+                telegramConnected: { type: 'boolean', description: 'Чи підключено Telegram' },
+                lastMessageCheck: { type: 'string', description: 'Остання перевірка повідомлень' },
+                lastParsedPublishedAt: { type: 'string', description: 'Дата останнього розпарсеного графіку' },
+                schedulesCount: { type: 'integer', description: 'Кількість графіків' }
+              }
+            },
+            Schedule: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', description: 'Унікальний ідентифікатор графіку' },
+                type: { type: 'string', description: 'Тип графіку (current, future, past)' },
+                date: { type: 'string', description: 'Дата графіку (YYYY-MM-DD)' },
+                queues: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string', description: 'Назва черги' },
+                      timeSlots: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            start: { type: 'string', description: 'Початок відключення (HH:mm)' },
+                            end: { type: 'string', description: 'Кінець відключення (HH:mm)' }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                rawText: { type: 'string', description: 'Оригінальний текст повідомлення' }
+              }
+            }
+          }
+        }
       },
       apis: [__filename],
     };
