@@ -134,7 +134,9 @@ export class ScheduleParser {
         return null;
       }
 
-      const scheduleDate = new Date(date);
+      // Треба — парсити як локальну дату:
+      const [year, month, day] = date.split('-').map(Number);
+      const scheduleDate = new Date(year, month - 1, day); // локальний час 
       if (strict && !this.isRelevantDate(scheduleDate)) {
         logger.debug(`Skipping schedule for ${date} - not today or tomorrow (strict mode)`);
         return null;
