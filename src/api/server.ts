@@ -85,7 +85,10 @@ export class ApiServer {
               properties: {
                 status: { type: 'string', description: 'Статус сервісу' },
                 uptime: { type: 'integer', description: 'Час роботи сервісу (секунди)' },
-                telegramConnected: { type: 'boolean', description: 'Чи підключено Telegram' },
+                telegramStatus: { type: 'string', description: 'Стан Telegram: connected/degraded/disconnected' },
+                telegramLastFetchAt: { type: 'string', description: 'Час останньої спроби отримати повідомлення з Telegram' },
+                telegramLastFetchSuccessAt: { type: 'string', description: 'Час останнього успішного отримання повідомлень з Telegram' },
+                telegramLastFetchError: { type: 'string', description: 'Текст останньої помилки отримання повідомлень з Telegram' },
                 lastMessageCheck: { type: 'string', description: 'Остання перевірка повідомлень' },
                 lastParsedPublishedAt: { type: 'string', description: 'Дата останнього розпарсеного графіку' },
                 schedulesCount: { type: 'integer', description: 'Кількість графіків' }
@@ -544,11 +547,21 @@ export class ApiServer {
   private async handleHealthCheck(_req: Request, res: Response): Promise<void> {
     try {
       const schedulesCount = await this.dataManager.getCount();
+      const telegramHealth = this.telegramMonitor.getHealth();
+      const telegramStatus = this.resolveTelegramStatus(
+        this.telegramMonitor.isConnected(),
+        telegramHealth.lastFetchAt,
+        telegramHealth.lastFetchSuccessAt,
+        telegramHealth.lastFetchError,
+      );
 
       const health: HealthStatus = {
         status: 'ok',
         uptime: Math.floor((Date.now() - this.startTime) / 1000),
-        telegramConnected: this.telegramMonitor.isConnected(),
+        telegramStatus,
+        telegramLastFetchAt: telegramHealth.lastFetchAt,
+        telegramLastFetchSuccessAt: telegramHealth.lastFetchSuccessAt,
+        telegramLastFetchError: telegramHealth.lastFetchError,
         lastMessageCheck: this.lastMessageCheck,
         lastParsedPublishedAt: await this.getLastParsedDate(),
         schedulesCount,
@@ -918,6 +931,38 @@ export class ApiServer {
 
   updateLastMessageCheck(): void {
     this.lastMessageCheck = new Date().toISOString();
+  }
+
+  private resolveTelegramStatus(
+    connected: boolean,
+    lastFetchAt?: string,
+    lastFetchSuccessAt?: string,
+    lastFetchError?: string,
+  ): 'connected' | 'degraded' | 'disconnected' {
+    if (!connected) {
+      return 'disconnected';
+    }
+
+    if (!lastFetchAt) {
+      return 'connected';
+    }
+
+    if (!lastFetchError) {
+      return 'connected';
+    }
+
+    if (!lastFetchSuccessAt) {
+      return 'degraded';
+    }
+
+    const lastFetchMs = new Date(lastFetchAt).getTime();
+    const lastSuccessMs = new Date(lastFetchSuccessAt).getTime();
+
+    if (Number.isNaN(lastFetchMs) || Number.isNaN(lastSuccessMs)) {
+      return 'degraded';
+    }
+
+    return lastSuccessMs >= lastFetchMs ? 'connected' : 'degraded';
   }
 
   private async getLastParsedDate(): Promise<string | undefined> {

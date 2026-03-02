@@ -11,6 +11,13 @@ export interface ITelegramMonitor {
   disconnect(): Promise<void>;
   getRecentMessages(limit?: number): Promise<Api.Message[]>;
   subscribeToNewMessages(handler: (message: Api.Message) => void): void;
+  getHealth(): TelegramMonitorHealth;
+}
+
+export interface TelegramMonitorHealth {
+  lastFetchAt?: string;
+  lastFetchSuccessAt?: string;
+  lastFetchError?: string;
 }
 
 export interface Schedule {
@@ -52,7 +59,10 @@ export interface ApiResponse<T = unknown> {
 export interface HealthStatus {
   status: 'ok' | 'error';
   uptime: number;
-  telegramConnected: boolean;
+  telegramStatus: 'connected' | 'degraded' | 'disconnected';
+  telegramLastFetchAt?: string;
+  telegramLastFetchSuccessAt?: string;
+  telegramLastFetchError?: string;
   lastMessageCheck?: string;
   lastParsedPublishedAt?: string;
   schedulesCount: number;

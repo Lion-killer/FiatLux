@@ -28,6 +28,7 @@ class FiatLuxService {
       disconnect: async () => { },
       getRecentMessages: async () => [],
       subscribeToNewMessages: () => { },
+      getHealth: () => ({}),
     };
 
     this.apiServer = new ApiServer(this.dataManager, placeholderMonitor);

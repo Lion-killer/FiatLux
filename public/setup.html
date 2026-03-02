@@ -612,7 +612,7 @@
                 try {
                     const resp = await fetch(`${API_BASE}/api/health`, { signal: AbortSignal.timeout(2000) });
                     const health = await resp.json();
-                    if (health.telegramConnected) {
+                    if (health.data?.telegramStatus === 'connected') {
                         clearInterval(checkInterval);
                         statusEl.innerHTML = '✅ Сервіс перезапущено, Telegram підключено!';
                         statusEl.style.color = '#10b981';

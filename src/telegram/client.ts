@@ -7,10 +7,16 @@ import config from '../config';
 import { logger } from '../utils/logger';
 
 export class TelegramChannelMonitor implements ITelegramMonitor {
+  private static readonly GET_MESSAGES_TIMEOUT_MS = 15_000;
+
   private client: TelegramClient;
   private connected: boolean = false;
   private session: StringSession;
   private messageHandler?: (message: Api.Message) => void;
+  private reconnectInProgress: boolean = false;
+  private lastFetchAt?: string;
+  private lastFetchSuccessAt?: string;
+  private lastFetchError?: string;
 
   constructor() {
     this.session = new StringSession(config.telegram.sessionString);
@@ -67,17 +73,82 @@ export class TelegramChannelMonitor implements ITelegramMonitor {
     }
 
     try {
+      this.lastFetchAt = new Date().toISOString();
       logger.info(`Fetching ${limit} recent messages from ${config.telegram.channelUsername}...`);
 
-      const messages = await this.client.getMessages(config.telegram.channelUsername, {
-        limit,
-      });
+      const messages = await this.withTimeout(
+        this.client.getMessages(config.telegram.channelUsername, {
+          limit,
+        }),
+        TelegramChannelMonitor.GET_MESSAGES_TIMEOUT_MS,
+        `Telegram getMessages timeout after ${TelegramChannelMonitor.GET_MESSAGES_TIMEOUT_MS}ms`
+      );
 
       logger.info(`Retrieved ${messages.length} messages`);
+      this.lastFetchSuccessAt = new Date().toISOString();
+      this.lastFetchError = undefined;
       return messages.filter((msg: any): msg is Api.Message => msg instanceof Api.Message);
     } catch (error) {
+      this.lastFetchError = error instanceof Error ? error.message : String(error);
       logger.error('Failed to fetch messages:', error);
+
+      // Якщо Telegram "підвис", пробуємо перепідключитися для наступних циклів
+      await this.reconnectAfterFailure(error);
+
       throw error;
+    }
+  }
+
+  private async reconnectAfterFailure(error: unknown): Promise<void> {
+    const message = error instanceof Error ? error.message : String(error);
+
+    if (this.reconnectInProgress) {
+      logger.warn('Reconnect already in progress, skipping duplicate reconnect attempt');
+      return;
+    }
+
+    this.reconnectInProgress = true;
+
+    try {
+      logger.warn(`Attempting Telegram reconnect after fetch failure: ${message}`);
+
+      try {
+        await this.client.disconnect();
+      } catch {
+        // ignore disconnect errors
+      }
+
+      await this.client.connect();
+      this.connected = await this.client.isUserAuthorized();
+
+      if (this.connected) {
+        logger.info('Telegram reconnect successful');
+      } else {
+        logger.warn('Telegram reconnect finished but client is not authorized');
+      }
+    } catch (reconnectError) {
+      logger.error('Telegram reconnect failed:', reconnectError);
+      this.connected = false;
+    } finally {
+      this.reconnectInProgress = false;
+    }
+  }
+
+  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+    try {
+      const timeoutPromise = new Promise<T>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          reject(new Error(errorMessage));
+        }, timeoutMs);
+      });
+
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
     }
   }
 
@@ -140,6 +211,14 @@ export class TelegramChannelMonitor implements ITelegramMonitor {
 
   isConnected(): boolean {
     return this.connected;
+  }
+
+  getHealth(): { lastFetchAt?: string; lastFetchSuccessAt?: string; lastFetchError?: string } {
+    return {
+      lastFetchAt: this.lastFetchAt,
+      lastFetchSuccessAt: this.lastFetchSuccessAt,
+      lastFetchError: this.lastFetchError,
+    };
   }
 
   getClient(): TelegramClient {
