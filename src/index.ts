@@ -155,7 +155,10 @@ class FiatLuxService {
   private startPolling(): void {
     logger.info(`Polling every ${FiatLuxService.POLLING_INTERVAL_MS / 1000}s for new schedules`);
 
-    this.pollingInterval = setInterval(async () => {
+    let currentInterval = FiatLuxService.POLLING_INTERVAL_MS;
+    const maxInterval = 40 * 60 * 1000; // макс. 40 хвилин
+
+    const poll = async () => {
       if (this.isShuttingDown || !this.telegramMonitor) return;
 
       try {
@@ -173,11 +176,30 @@ class FiatLuxService {
           logger.info(`Polling: found ${newCount} new schedule(s)`);
           this.apiServer.updateLastMessageCheck();
         }
+
+        // Успіх — скидаємо інтервал до стандартного
+        if (currentInterval !== FiatLuxService.POLLING_INTERVAL_MS) {
+          logger.info(`Polling recovered, resetting interval to ${FiatLuxService.POLLING_INTERVAL_MS / 1000}s`);
+          currentInterval = FiatLuxService.POLLING_INTERVAL_MS;
+        }
       } catch (error) {
         logger.error('Polling error:', error);
+
+        // Backoff — збільшуємо інтервал при помилках
+        currentInterval = Math.min(currentInterval * 2, maxInterval);
+        logger.warn(`Polling backoff: next attempt in ${currentInterval / 1000}s`);
       }
-    }, FiatLuxService.POLLING_INTERVAL_MS);
+
+      // Плануємо наступний виклик з поточним інтервалом
+      if (!this.isShuttingDown) {
+        this.pollingInterval = setTimeout(poll, currentInterval);
+      }
+    };
+
+    // Перший виклик через стандартний інтервал
+    this.pollingInterval = setTimeout(poll, currentInterval);
   }
+
 
   async shutdown(): Promise<void> {
     if (this.isShuttingDown) return;
@@ -188,7 +210,7 @@ class FiatLuxService {
     try {
       // Зупинити polling
       if (this.pollingInterval) {
-        clearInterval(this.pollingInterval);
+        clearTimeout(this.pollingInterval);
         this.pollingInterval = undefined;
       }
 

@@ -7,25 +7,34 @@ import config from '../config';
 import { logger } from '../utils/logger';
 
 export class TelegramChannelMonitor implements ITelegramMonitor {
-  private static readonly GET_MESSAGES_TIMEOUT_MS = 15_000;
+  private static readonly GET_MESSAGES_TIMEOUT_MS = 30_000;
+  private static readonly CONSECUTIVE_FAILURES_BEFORE_RECREATE = 3;
 
   private client: TelegramClient;
   private connected: boolean = false;
   private session: StringSession;
   private messageHandler?: (message: Api.Message) => void;
-  private reconnectInProgress: boolean = false;
   private lastFetchAt?: string;
   private lastFetchSuccessAt?: string;
   private lastFetchError?: string;
+  private consecutiveFailures: number = 0;
+  private recreatingClient: boolean = false;
 
   constructor() {
     this.session = new StringSession(config.telegram.sessionString);
-    this.client = new TelegramClient(
+    this.client = this.createClient();
+  }
+
+  private createClient(): TelegramClient {
+    return new TelegramClient(
       this.session,
       config.telegram.apiId,
       config.telegram.apiHash,
       {
-        connectionRetries: 5,
+        connectionRetries: 10,
+        retryDelay: 2000,
+        autoReconnect: true,
+        timeout: 30,
       }
     );
   }
@@ -43,6 +52,7 @@ export class TelegramChannelMonitor implements ITelegramMonitor {
       }
 
       this.connected = true;
+      this.consecutiveFailures = 0;
       logger.info('Successfully connected to Telegram');
 
       // Save session string for future use
@@ -87,50 +97,77 @@ export class TelegramChannelMonitor implements ITelegramMonitor {
       logger.info(`Retrieved ${messages.length} messages`);
       this.lastFetchSuccessAt = new Date().toISOString();
       this.lastFetchError = undefined;
+      this.consecutiveFailures = 0;
       return messages.filter((msg: any): msg is Api.Message => msg instanceof Api.Message);
     } catch (error) {
       this.lastFetchError = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to fetch messages:', error);
+      this.consecutiveFailures++;
+      logger.error(`Failed to fetch messages (failure #${this.consecutiveFailures}):`, error);
 
-      // Якщо Telegram "підвис", пробуємо перепідключитися для наступних циклів
-      await this.reconnectAfterFailure(error);
+      // Після кількох послідовних невдач — пересоздаємо клієнт повністю
+      if (this.consecutiveFailures >= TelegramChannelMonitor.CONSECUTIVE_FAILURES_BEFORE_RECREATE) {
+        await this.recreateClient();
+      }
 
       throw error;
     }
   }
 
-  private async reconnectAfterFailure(error: unknown): Promise<void> {
-    const message = error instanceof Error ? error.message : String(error);
-
-    if (this.reconnectInProgress) {
-      logger.warn('Reconnect already in progress, skipping duplicate reconnect attempt');
+  /**
+   * Повністю пересоздає GramJS клієнт — скидає мертве TCP-з'єднання.
+   * Викликається тільки після кількох послідовних невдач.
+   */
+  private async recreateClient(): Promise<void> {
+    if (this.recreatingClient) {
+      logger.warn('Client recreation already in progress, skipping');
       return;
     }
 
-    this.reconnectInProgress = true;
+    this.recreatingClient = true;
 
     try {
-      logger.warn(`Attempting Telegram reconnect after fetch failure: ${message}`);
+      logger.warn(`Recreating Telegram client after ${this.consecutiveFailures} consecutive failures...`);
 
+      // Тихо відключаємо старий клієнт
       try {
         await this.client.disconnect();
       } catch {
-        // ignore disconnect errors
+        // ігноруємо помилки disconnect
       }
 
+      // Зберігаємо сесію з поточного клієнта
+      try {
+        const savedSession = this.client.session.save() as unknown as string;
+        if (savedSession) {
+          this.session = new StringSession(savedSession);
+        }
+      } catch {
+        // якщо не вдалося зберегти — використовуємо початкову сесію
+        this.session = new StringSession(config.telegram.sessionString);
+      }
+
+      // Створюємо новий клієнт
+      this.client = this.createClient();
+
+      // Підключаємося
       await this.client.connect();
       this.connected = await this.client.isUserAuthorized();
+      this.consecutiveFailures = 0;
 
       if (this.connected) {
-        logger.info('Telegram reconnect successful');
+        logger.info('Telegram client recreated and reconnected successfully');
+        // Переприв'язуємо event handler якщо був
+        if (this.messageHandler) {
+          this.resubscribeToMessages();
+        }
       } else {
-        logger.warn('Telegram reconnect finished but client is not authorized');
+        logger.warn('Telegram client recreated but not authorized');
       }
     } catch (reconnectError) {
-      logger.error('Telegram reconnect failed:', reconnectError);
+      logger.error('Failed to recreate Telegram client:', reconnectError);
       this.connected = false;
     } finally {
-      this.reconnectInProgress = false;
+      this.recreatingClient = false;
     }
   }
 
@@ -158,6 +195,13 @@ export class TelegramChannelMonitor implements ITelegramMonitor {
     }
 
     this.messageHandler = handler;
+    this.resubscribeToMessages();
+  }
+
+  private resubscribeToMessages(): void {
+    if (!this.messageHandler) return;
+
+    const handler = this.messageHandler;
 
     // Resolve entity спочатку для надійної фільтрації
     this.client.getInputEntity(config.telegram.channelUsername)
@@ -170,9 +214,7 @@ export class TelegramChannelMonitor implements ITelegramMonitor {
               const preview = message.message ? message.message.substring(0, 100).replace(/\n/g, ' ') : '(no text)';
               logger.info(`New message received from event handler: ID ${message.id}. Text preview: "${preview}..."`);
 
-              if (this.messageHandler) {
-                this.messageHandler(message);
-              }
+              handler(message);
             }
           },
           new NewMessage({ chats: [config.telegram.channelUsername] })
@@ -190,9 +232,7 @@ export class TelegramChannelMonitor implements ITelegramMonitor {
               const preview = message.message ? message.message.substring(0, 100).replace(/\n/g, ' ') : '(no text)';
               logger.info(`New message received: ID ${message.id} from chat ${message.chatId}. Text preview: "${preview}..."`);
 
-              if (this.messageHandler) {
-                this.messageHandler(message);
-              }
+              handler(message);
             }
           },
           new NewMessage({})
