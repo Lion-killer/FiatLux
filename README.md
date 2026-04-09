@@ -70,7 +70,7 @@
 | `K` | Налаштування SSH ключів |
 | `4` | Повний деплой |
 | `5` | Статус контейнера |
-| `6` | Оновити (pull + rebuild) |
+| `6` | Запустити контейнер |
 | `7` | Зупинити контейнер |
 | `8` | Переглянути логи |
 | `D` | Видалити все з сервера |
@@ -98,14 +98,21 @@
 FiatLux/
 ├── src/
 │   ├── api/              # Express API сервер
-│   ├── telegram/         # Telegram клієнт + авторизація
+│   ├── config/           # Конфігурація додатку
 │   ├── parsers/          # Парсер графіків відключень
 │   ├── storage/          # In-memory сховище
+│   ├── telegram/         # Telegram клієнт + авторизація
+│   ├── types/            # TypeScript типи
+│   ├── utils/            # Утиліти (логер, env менеджер)
 │   └── index.ts          # Entry point
 ├── public/
 │   ├── index.html        # Web інтерфейс (таймлайн)
 │   └── setup.html        # Telegram setup wizard
-├── docs/                 # Документація
+├── docs/
+│   ├── DEPLOY.md         # Детальна інструкція деплою
+│   ├── QUICKSTART.md     # Швидкий старт
+│   ├── WEB_SETUP.md      # Налаштування через web інтерфейс
+│   └── images/           # Скриншоти
 ├── docker-compose.yml
 ├── Dockerfile
 └── deploy.ps1            # Windows → Linux deployment

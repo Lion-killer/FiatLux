@@ -4,118 +4,74 @@
 
 ## ⚡ Швидкий старт
 
-### 1. Запуск deploy скрипта (Windows)
-
 ```powershell
 .\deploy.ps1
 ```
 
-### 2. Налаштування конфігурації (опція 1)
-
-Введіть параметри:
-- IP адреса сервера
-- SSH користувач
-- SSH пароль (тимчасово, для налаштування ключів)
-- Repository URL
-- Telegram API credentials
-
-### 3. 🔑 Налаштування SSH ключів (опція K) **⭐ ОБОВ'ЯЗКОВО**
-
-**ВАЖЛИВО:** OpenSSH не може використовувати пароль з конфігу. Потрібні SSH ключі!
-
-Скрипт **автоматично**:
-- ✅ Згенерує SSH ключ (якщо його немає)
-- ✅ Скопіює публічний ключ на сервер
-- ✅ Попросить пароль **ОДИН РАЗ**
-- ✅ Далі пароль не потрібен!
-
-### 4. Deploy (опція 5)
-
-Готово! Скрипт автоматично задеплоїть проект.
+1. **Опція 1** — Введіть IP сервера та SSH користувача
+2. **Опція K** — Налаштуйте SSH ключі (пароль потрібен один раз)
+3. **Опція 3** — Перевірте конфігурацію
+4. **Опція 4** — Deploy
+5. **Відкрийте** `http://<server-ip>:8080/setup.html` — введіть Telegram credentials через веб-інтерфейс
 
 ---
 
 ## 📋 Вимоги
 
 ### На локальній машині (Windows)
-- **Windows 10/11** з PowerShell 5.1+
-- **OpenSSH Client** (зазвичай встановлений за замовчуванням)
-  - Якщо не встановлений: Settings > Apps > Optional Features > Add "OpenSSH Client"
+- Windows 10/11 з PowerShell 5.1+
+- OpenSSH Client (зазвичай встановлений за замовчуванням)
+  - Якщо ні: Settings → Apps → Optional Features → "OpenSSH Client"
   - Або через PowerShell (адміністратор): `Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0`
-- **Git** (опційно)
 
 ### На сервері (Linux)
-- **Ubuntu 20.04+** або інший Linux
-- **Docker** та **docker-compose**
-- **SSH доступ**
+- Ubuntu 20.04+ або інший Linux
+- Docker та docker-compose
+- SSH доступ
 
 ---
 
 ## 🔧 Конфігурація
 
-### Автоматична конфігурація (рекомендовано)
-
+### Автоматична (рекомендовано)
 Запустіть `.\deploy.ps1` і виберіть опцію **1. Setup Configuration**.
 
-### Ручна конфігурація
-
+### Ручна
 Створіть файл `.deploy-config.env` в корені проекту:
 
 ```ini
 # Server Settings
-DEPLOY_SERVER=192.168.1.100        # IP сервера
-DEPLOY_USER=ubuntu                  # SSH користувач
-DEPLOY_PASSWORD=your_password       # Пароль (тимчасово)
-DEPLOY_PORT=8080                    # Порт застосунку
+DEPLOY_SERVER=192.168.1.100
+DEPLOY_USER=root
+DEPLOY_PORT=8080
 
 # Repository
-DEPLOY_REPO_URL=https://github.com/your-username/FiatLux.git
+DEPLOY_REPO_URL=https://github.com/Lion-killer/FiatLux.git
 
-# Telegram API (з https://my.telegram.org)
-API_ID=12345678
-API_HASH=your_api_hash_here
+# Telegram Channel
 CHANNEL_USERNAME=pat_cherkasyoblenergo
 ```
 
-### Безпека конфігурації
-
-⚠️ **ВАЖЛИВО:**
-- Файл `.deploy-config.env` автоматично в `.gitignore`
-- **Ніколи не комітьте цей файл** в git
-- Містить чутливі дані: паролі, API ключі
-- Кожен розробник має свою копію
+> ⚠️ Файл `.deploy-config.env` є в `.gitignore`. **Ніколи не комітьте його** в git — містить чутливі дані сервера.
 
 ---
 
 ## 🔑 SSH Ключі
 
-### Чому потрібні SSH ключі?
+OpenSSH не підтримує передачу пароля через командний рядок — потрібні SSH ключі.
 
-OpenSSH (вбудований у Windows) не підтримує передачу пароля через параметри командного рядка. Натомість використовуються SSH ключі:
-- ✅ Безпечніше за паролі
-- ✅ Працюють автоматично
-- ✅ Не потрібно вводити пароль кожного разу
-
-### Автоматичне налаштування (рекомендовано)
+### Автоматично (рекомендовано)
 
 1. Запустіть `.\deploy.ps1`
 2. Виберіть **K. Setup SSH Keys**
-3. Скрипт автоматично:
-   - Згенерує RSA-4096 ключ (якщо немає)
-   - Скопіює публічний ключ на сервер
-   - Попросить ввести пароль **один раз**
-   - Налаштує все автоматично
+3. Скрипт згенерує RSA-4096 ключ (якщо немає) і скопіює на сервер
+4. Пароль потрібен **один раз** — далі все автоматично
 
-### Ручне налаштування
-
-Якщо потрібно налаштувати вручну:
+### Вручну
 
 ```powershell
-# Генерація ключа
-ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
-
-# Копіювання на сервер
-type $env:USERPROFILE\.ssh\id_rsa.pub | ssh ubuntu@192.168.1.100 "cat >> ~/.ssh/authorized_keys"
+ssh-keygen -t rsa -b 4096
+type $env:USERPROFILE\.ssh\id_rsa.pub | ssh user@server "cat >> ~/.ssh/authorized_keys"
 ```
 
 ---
@@ -124,131 +80,85 @@ type $env:USERPROFILE\.ssh\id_rsa.pub | ssh ubuntu@192.168.1.100 "cat >> ~/.ssh/
 
 ### Головне меню
 
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  🚀 FiatLux Docker Deploy Tool
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-1. Setup Configuration      - Перше налаштування
-2. Edit Configuration        - Редагувати існуючу конфігурацію
-3. View Configuration        - Переглянути поточну конфігурацію
-4. Verify Configuration      - Перевірити SSH, Docker, тощо
-K. Setup SSH Keys           - Налаштувати SSH ключі (обов'язково!)
-5. Deploy                   - Запустити деплой
-6. Check Status             - Статус контейнера
-7. Update Code              - Оновити код (git pull)
-8. Stop Service             - Зупинити сервіс
-9. Show Logs                - Переглянути логи
-D. Delete Container         - Видалити контейнер
-0. Exit                     - Вихід
-```
+| Опція | Дія |
+|-------|-----|
+| `1` | Setup Configuration — IP сервера та SSH користувач |
+| `2` | View Configuration — переглянути поточну конфігурацію |
+| `3` | Verify Configuration — перевірити SSH та Docker |
+| `K` | Setup SSH Keys — налаштувати SSH ключі |
+| `4` | Deploy — повний деплой (або оновлення) |
+| `5` | Check Status — статус контейнера та останні логи |
+| `6` | Start Service — запустити зупинений контейнер |
+| `7` | Stop Service — зупинити сервіс |
+| `8` | Show Logs — логи в реальному часі |
+| `D` | Delete Container — видалити контейнер та всі дані |
+| `0` | Exit |
 
 ### Типовий workflow
 
-```powershell
-# 1. Перший раз - налаштування
-.\deploy.ps1
-# Виберіть: 1 (Setup Configuration)
-# Виберіть: K (Setup SSH Keys)
-# Виберіть: 4 (Verify Configuration)
+```
+# Перший запуск
+1 → IP сервера та SSH User
+K → SSH ключі (пароль один раз)
+3 → Перевірка
+4 → Deploy
 
-# 2. Деплой
-# Виберіть: 5 (Deploy)
+# Наступні оновлення — просто:
+4 → Deploy (автоматично git pull + rebuild)
 
-# 3. Перевірка
-# Виберіть: 6 (Check Status)
-
-# 4. Перегляд логів
-# Виберіть: 9 (Show Logs)
+# Моніторинг:
+5 → Status
+8 → Logs
 ```
 
 ### Опції меню (детально)
 
-#### 1. Setup Configuration / 2. Edit Configuration
+#### 1. Setup Configuration
+Запитує і зберігає IP/домен сервера та SSH користувача.
 
-Налаштування або редагування параметрів:
-- IP адреса сервера
-- SSH користувач
-- SSH пароль (тимчасово)
-- Порт застосунку (за замовчуванням 8080)
-- Git repository URL
-- Telegram API credentials
+#### 2. View Configuration
+Відображає поточні налаштування: сервер, користувач, порт, репозиторій, канал.
 
-Конфігурація автоматично зберігається в `.deploy-config.env`.
-
-#### 3. View Configuration
-
-Відображає поточну конфігурацію з маскуванням чутливих даних:
-- API Hash: показує тільки останні 4 символи
-- Пароль: повністю прихований
-
-#### 4. Verify Configuration
-
-Перевіряє:
-- ✓ Всі обов'язкові поля заповнені
-- ✓ SSH з'єднання працює
-- ✓ Docker встановлений на сервері
-- ✓ docker-compose встановлений на сервері
-- ✓ Git repository доступний
+#### 3. Verify Configuration
+Перевіряє SSH з'єднання і наявність Docker на сервері.
 
 #### K. Setup SSH Keys
+- Генерує RSA-4096 ключ якщо відсутній
+- Копіює публічний ключ на сервер (пароль один раз)
+- Після цього всі SSH команди працюють без пароля
 
-Автоматично налаштовує SSH ключі:
-1. Перевіряє чи існує ключ у `~/.ssh/id_rsa`
-2. Якщо немає - генерує новий RSA-4096 ключ
-3. Копіює публічний ключ на сервер
-4. Просить ввести пароль **один раз**
-5. Після цього всі SSH команди працюють автоматично
+#### 4. Deploy
+При першому запуску клонує репозиторій, при повторному — виконує `git pull`.
 
-#### 5. Deploy
+1. Створює `/opt/fiatlux` на сервері
+2. Клонує або оновлює репозиторій
+3. Зупиняє старі контейнери
+4. Зберігає наявні Telegram credentials (API_ID, API_HASH, SESSION_STRING) між деплоями
+5. Будує Docker образ
+6. Запускає контейнер
 
-Виконує повний цикл деплою:
-1. 📁 Створює директорію на сервері (`/opt/fiatlux`)
-2. 📦 Клонує або оновлює Git репозиторій
-3. ⚙️ Створює `.env` з вашими credentials
-4. 🛑 Зупиняє старі контейнери (якщо є)
-5. 🏗️ Будує Docker образ
-6. 🚀 Запускає контейнер через docker-compose
-7. ✅ Перевіряє статус і доступність API
+#### 5. Check Status
+Показує статус контейнерів та останні 20 рядків логів.
 
-#### 6. Check Status
+#### 6. Start Service
+Запускає зупинений контейнер (`docker compose up -d`).
 
-Показує:
-- Статус контейнерів
-- Порти
-- Час роботи (uptime)
-- Останні 10 рядків логів
+#### 7. Stop Service
+Зупиняє контейнер (`docker compose stop`).
 
-#### 7. Update Code
-
-Оновлює код на сервері:
-- Виконує `git pull`
-- Перебудовує Docker образ
-- Перезапускає контейнер
-
-#### 8. Stop Service
-
-Зупиняє контейнер через `docker-compose stop`.
-
-#### 9. Show Logs
-
-Відображає логи в реальному часі. Натисніть **Ctrl+C** для виходу.
+#### 8. Show Logs
+Логи в реальному часі. Ctrl+C для виходу.
 
 #### D. Delete Container
-
-⚠️ **Обережно!** Видаляє контейнер та volumes:
-- Зупиняє контейнер
-- Видаляє образ
-- Видаляє volumes (всі дані)
+⚠️ **Незворотньо!** Видаляє контейнер і volumes. Вимагає підтвердження.
 
 ---
 
 ## 🔐 Безпека
 
-### SSH
+### Firewall на сервері
 
 ```bash
-# На сервері: налаштуйте firewall
 sudo ufw allow ssh
 sudo ufw allow 8080/tcp
 sudo ufw enable
@@ -257,10 +167,7 @@ sudo ufw enable
 ### Nginx reverse proxy (рекомендовано)
 
 ```bash
-# Встановлення Nginx
 sudo apt install nginx
-
-# Конфігурація
 sudo nano /etc/nginx/sites-available/fiatlux
 ```
 
@@ -268,24 +175,21 @@ sudo nano /etc/nginx/sites-available/fiatlux
 server {
     listen 80;
     server_name your-domain.com;
-    
+
     location / {
         proxy_pass http://localhost:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 }
 ```
 
 ```bash
-# Активація
 sudo ln -s /etc/nginx/sites-available/fiatlux /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-### SSL сертифікат (Let's Encrypt)
+### SSL (Let's Encrypt)
 
 ```bash
 sudo apt install certbot python3-certbot-nginx
@@ -296,205 +200,57 @@ sudo certbot --nginx -d your-domain.com
 
 ## 🐛 Troubleshooting
 
-### Проблема: "ssh-keygen not found"
-
-**Причина:** OpenSSH Client не встановлений або не в PATH.
-
-**Рішення:**
-
+### "ssh-keygen not found"
+OpenSSH Client не встановлений. Встановіть через Settings → Apps → Optional Features → "OpenSSH Client", або:
 ```powershell
-# Варіант 1: Через Settings (графічний інтерфейс)
-# 1. Відкрийте Settings (Win+i)
-# 2. Apps > Optional Features
-# 3. Add a feature
-# 4. Знайдіть "OpenSSH Client"
-# 5. Install
-
-# Варіант 2: Через PowerShell (запустіть від адміністратора)
 Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
-
-# Після встановлення перевірте
-ssh -V
-ssh-keygen -h
-
-# Перезапустіть PowerShell і спробуйте знову
 ```
 
-### Проблема: "SSH connection failed"
-
-**Рішення:**
-
+### "SSH connection failed"
 ```powershell
-# 1. Перевірте SSH ключ
+# Перевірте SSH ключ
 Test-Path $env:USERPROFILE\.ssh\id_rsa
-
-# 2. Спробуйте підключитися вручну
-ssh ubuntu@192.168.1.100
-
-# 3. Якщо не працює - налаштуйте ключі
-.\deploy.ps1
-# Виберіть: K (Setup SSH Keys)
+# Якщо ні — виберіть K (Setup SSH Keys)
 ```
 
-### Проблема: "Docker not installed"
-
-На сервері встановіть Docker:
-
+### "Docker not installed"
 ```bash
-# Встановлення Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-
-# Додати користувача до групи docker
-sudo usermod -aG docker $USER
-newgrp docker
-
-# Перевірка
-docker --version
-docker-compose --version
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER && newgrp docker
 ```
 
-### Проблема: "Container not starting"
-
-```powershell
-# Перегляньте логи
-.\deploy.ps1
-# Виберіть: 9 (Show Logs)
-
-# Або вручну через SSH
-ssh ubuntu@server "cd /opt/fiatlux && docker-compose logs --tail=100"
-```
-
-### Проблема: "Port already in use"
-
-```powershell
-# Змініть порт у конфігурації
-.\deploy.ps1
-# Виберіть: 2 (Edit Configuration)
-# Змініть DEPLOY_PORT на інший (наприклад, 3001)
-
-# Передеплойте
-# Виберіть: 5 (Deploy)
-```
-
-### Проблема: "Git repository not accessible"
-
-Перевірте URL репозиторію:
-
-```powershell
-.\deploy.ps1
-# Виберіть: 3 (View Configuration)
-# Переконайтеся що DEPLOY_REPO_URL правильний
-
-# Якщо ні - відредагуйте
-# Виберіть: 2 (Edit Configuration)
-```
-
-### Проблема: "Telegram authentication error"
-
+### "Container not starting"
+Перегляньте логи (опція **8**) або вручну:
 ```bash
-# На сервері: видаліть старий сеанс
-ssh ubuntu@server "rm -rf /opt/fiatlux/data/session.session"
+ssh user@server "cd /opt/fiatlux && docker compose logs --tail=100"
+```
 
-# Перезапустіть
-ssh ubuntu@server "cd /opt/fiatlux && docker-compose restart"
-
-# Або через меню
-.\deploy.ps1
-# Виберіть: D (Delete Container)
-# Потім: 5 (Deploy)
+### "Telegram authentication error"
+```bash
+# Видаліть сесію і пройдіть web setup заново
+ssh user@server "docker compose exec fiatlux sh -c \"sed -i '/^SESSION_STRING=/d' .env\""
+ssh user@server "cd /opt/fiatlux && docker compose restart"
+# Відкрийте http://<server>:8080/setup.html
 ```
 
 ---
 
-## 📞 Корисні команди
-
-### На локальній машині
-
-```powershell
-# Підключитися до сервера
-ssh ubuntu@192.168.1.100
-
-# Переглянути конфігурацію
-Get-Content .deploy-config.env
-
-# Перевірити SSH ключ
-Test-Path $env:USERPROFILE\.ssh\id_rsa
-```
-
-### На сервері (через SSH)
+## 📞 Корисні команди на сервері
 
 ```bash
-# Перейти в директорію проекту
 cd /opt/fiatlux
-
-# Переглянути логи
-docker-compose logs -f
-
-# Статус контейнерів
-docker-compose ps
-
-# Перезапустити
-docker-compose restart
-
-# Зупинити
-docker-compose down
-
-# Запустити
-docker-compose up -d
-
-# Видалити все (включно з даними)
-docker-compose down -v
-```
-
----
-
-## 🎯 Приклад повного деплою
-
-```powershell
-# ===== КРОК 1: Перша конфігурація =====
-.\deploy.ps1
-
-# Меню: Виберіть 1 (Setup Configuration)
-# Введіть:
-#   Server: 192.168.1.100
-#   User: ubuntu
-#   Password: your_temp_password
-#   Port: 8080
-#   Repo: https://github.com/Lion-killer/FiatLux.git
-#   API_ID: 12345678
-#   API_HASH: your_api_hash
-#   Channel: pat_cherkasyoblenergo
-
-# ===== КРОК 2: SSH Ключі =====
-# Меню: Виберіть K (Setup SSH Keys)
-# Введіть пароль сервера ОДИН РАЗ
-# ✅ SSH ключі налаштовані!
-
-# ===== КРОК 3: Перевірка =====
-# Меню: Виберіть 4 (Verify Configuration)
-# ✅ Все OK? Продовжуємо
-
-# ===== КРОК 4: Деплой =====
-# Меню: Виберіть 5 (Deploy)
-# Чекаємо 2-3 хвилини...
-# ✅ Deploy completed successfully!
-
-# ===== КРОК 5: Перевірка =====
-# Відкрийте браузер: http://192.168.1.100:8080
-# 🎉 FiatLux працює!
-
-# ===== КРОК 6: Перегляд логів =====
-# Меню: Виберіть 9 (Show Logs)
-# Переконайтеся що Telegram підключений
-
-# ГОТОВО! 🚀
+docker compose logs -f       # Логи в реальному часі
+docker compose ps             # Статус
+docker compose restart        # Перезапуск
+docker compose down           # Зупинка
+docker compose up -d          # Запуск
+docker compose down -v        # Видалення (з даними)
 ```
 
 ---
 
 ## 📖 Додаткові ресурси
 
-- [QUICKSTART.md](QUICKSTART.md) - Локальна розробка
-- [WEB_SETUP.md](WEB_SETUP.md) - Веб-інтерфейс налаштування Telegram
-- [README.md](../README.md) - Загальний огляд проекту
+- [QUICKSTART.md](QUICKSTART.md) — Локальна розробка
+- [WEB_SETUP.md](WEB_SETUP.md) — Налаштування Telegram через веб
+- [README.md](../README.md) — Загальний огляд
