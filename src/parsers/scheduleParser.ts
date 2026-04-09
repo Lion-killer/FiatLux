@@ -95,7 +95,7 @@ export class ScheduleParser {
   static extractQueuesWithSubQueues(text: string): QueueInfo[] {
     const queuesMap = new Map<string, TimeSlot[]>();
 
-    for (const match of text.matchAll(/(\d+)\.(\d+):\s*([^\n]+)/g)) {
+    for (const match of text.matchAll(/(\d+)\.(\d+):?\s+([^\n]+)/g)) {
       const key       = `${match[1]}.${match[2]}`;
       const timeSlots = this.extractTimeSlotsFromLine(match[3]);
       if (timeSlots.length > 0) queuesMap.set(key, timeSlots);
