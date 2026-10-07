@@ -84,6 +84,7 @@ class FiatLuxService {
           logger.warn('Перемикаємося у режим налаштування (setup mode)');
           logger.info(`📍 Open http://localhost:${config.server.port}/setup.html to authenticate via WEB`);
           // API server is already listening
+          this.apiServer.setAuthRequired();
           logger.info('=== FiatLux Service Started (Setup Mode) ===');
           return;
         } else {
@@ -127,6 +128,10 @@ class FiatLuxService {
         await this.startMonitoring();
       } catch (error) {
         logger.error('Telegram reconnect failed:', error);
+        if (error instanceof Error && error.message.includes('NOT_AUTHORIZED')) {
+          this.apiServer.setAuthRequired();
+          return;
+        }
         this.scheduleReconnect(Math.min(delay * 2, maxDelay));
       }
     }, delay);

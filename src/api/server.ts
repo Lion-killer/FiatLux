@@ -17,6 +17,7 @@ export class ApiServer {
   private authManager: TelegramAuthManager;
   private startTime: number = Date.now();
   private lastMessageCheck?: string;
+  private authRequired = false;
 
   constructor(dataManager: DataManager, telegramMonitor: ITelegramMonitor) {
     this.app = express();
@@ -35,6 +36,11 @@ export class ApiServer {
   /** Replace the Telegram monitor (e.g. placeholder → real client after connect) */
   setTelegramMonitor(monitor: ITelegramMonitor): void {
     this.telegramMonitor = monitor;
+  }
+
+  /** Telegram відхилив збережену сесію — веб-інтерфейс має відправити на setup.html */
+  setAuthRequired(): void {
+    this.authRequired = true;
   }
 
   private setupMiddleware(): void {
@@ -733,7 +739,7 @@ export class ApiServer {
       const response: ApiResponse = {
         success: true,
         data: {
-          configured: isConfigured,
+          configured: isConfigured && !this.authRequired,
           hasApiCredentials,
           hasSession,
           apiId: hasApiCredentials ? this.envManager.getVariable('API_ID') : undefined,
