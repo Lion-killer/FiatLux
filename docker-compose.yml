@@ -8,6 +8,7 @@ services:
     environment:
       - PORT=8080
       - HOST=0.0.0.0
+      - TZ=Europe/Kyiv
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - ./.env:/app/.env  # Зберігає .env між перезапусками

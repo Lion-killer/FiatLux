@@ -89,24 +89,47 @@ class FiatLuxService {
         } else {
           logger.error('Telegram connection failed:', error);
           logger.info('=== FiatLux Service Started (Limited Mode) ===');
+          this.scheduleReconnect(FiatLuxService.POLLING_INTERVAL_MS / 5);
           return;
         }
       }
 
-      // Load recent messages and parse them
-      await this.loadRecentSchedules();
-
-      // Subscribe to new messages
-      this.subscribeToNewMessages();
-
-      // Запуск періодичного опитування (підстраховка для event handler)
-      this.startPolling();
-
-      logger.info('=== FiatLux Service Started Successfully ===');
+      await this.startMonitoring();
     } catch (error) {
       logger.error('Failed to initialize service:', error);
       throw error;
     }
+  }
+
+  private async startMonitoring(): Promise<void> {
+    // Load recent messages and parse them
+    await this.loadRecentSchedules();
+
+    // Subscribe to new messages
+    this.subscribeToNewMessages();
+
+    // Запуск періодичного опитування (підстраховка для event handler)
+    this.startPolling();
+
+    logger.info('=== FiatLux Service Started Successfully ===');
+  }
+
+  // Повторні спроби підключення, якщо Telegram був недоступний при старті (напр., мережа ще не піднялась)
+  private scheduleReconnect(delay: number): void {
+    const maxDelay = 40 * 60 * 1000;
+    logger.info(`Retrying Telegram connection in ${delay / 1000}s`);
+
+    this.pollingInterval = setTimeout(async () => {
+      if (this.isShuttingDown || !this.telegramMonitor) return;
+      try {
+        await this.telegramMonitor.connect();
+        this.isTelegramConnected = true;
+        await this.startMonitoring();
+      } catch (error) {
+        logger.error('Telegram reconnect failed:', error);
+        this.scheduleReconnect(Math.min(delay * 2, maxDelay));
+      }
+    }, delay);
   }
 
   private async loadRecentSchedules(): Promise<void> {
