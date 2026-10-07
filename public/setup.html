@@ -489,7 +489,8 @@
 
                 if (data.success) {
                     sessionId = data.data.sessionId;
-                    showAlert('Код надіслано на ваш Telegram!', 'success');
+                    showAlert(`Код надіслано ${data.data.deliveredTo || 'на ваш Telegram'}`, 'success');
+                    if (data.data.deliveredTo) document.querySelector('#step3Info p:last-child').textContent = `Telegram надіслав код ${data.data.deliveredTo}. Введіть його нижче.`;
                     setTimeout(() => goToStep(3), 1000);
                 } else {
                     showAlert(data.error || 'Помилка відправки коду');

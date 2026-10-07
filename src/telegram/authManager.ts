@@ -1,7 +1,17 @@
-import { TelegramClient } from 'telegram';
+import { Api, TelegramClient } from 'telegram';
 import { StringSession } from 'telegram/sessions';
 import { computeCheck } from 'telegram/Password';
 import { logger } from '../utils/logger';
+
+/** Куди Telegram надіслав код входу — показується користувачу на setup.html */
+function describeCodeDelivery(type: Api.auth.TypeSentCodeType): string {
+  if (type instanceof Api.auth.SentCodeTypeApp) return 'у застосунок Telegram — чат «Telegram» на іншому вашому пристрої';
+  if (type instanceof Api.auth.SentCodeTypeSms || type instanceof Api.auth.SentCodeTypeFirebaseSms) return 'SMS-повідомленням';
+  if (type instanceof Api.auth.SentCodeTypeEmailCode) return `на email ${type.emailPattern}`;
+  if (type instanceof Api.auth.SentCodeTypeFragmentSms) return `через Fragment: ${type.url}`;
+  if (type instanceof Api.auth.SentCodeTypeSetUpEmailRequired) return 'нікуди: Telegram вимагає спершу прив\'язати email для входу (Налаштування → Конфіденційність → Email для входу)';
+  return `дзвінком (${type.className})`;
+}
 
 interface AuthSession {
   client: TelegramClient;
@@ -16,9 +26,9 @@ export class TelegramAuthManager {
   /**
    * Start authentication process with phone number
    */
-  async startAuth(apiId: number, apiHash: string, phoneNumber: string): Promise<{ sessionId: string; codeLength?: number }> {
+  async startAuth(apiId: number, apiHash: string, phoneNumber: string): Promise<{ sessionId: string; codeLength?: number; deliveredTo: string }> {
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    
+
     try {
       const session = new StringSession('');
       const client = new TelegramClient(session, apiId, apiHash, {
@@ -27,14 +37,14 @@ export class TelegramAuthManager {
 
       await client.connect();
 
-      // Request phone code
-      const result = await client.sendCode(
-        {
-          apiId,
-          apiHash,
-        },
-        phoneNumber
-      );
+      // Request phone code (напряму, щоб знати, куди Telegram його надіслав)
+      const result = await client.invoke(new Api.auth.SendCode({
+        phoneNumber,
+        apiId,
+        apiHash,
+        settings: new Api.CodeSettings({}),
+      }));
+      if (result instanceof Api.auth.SentCodeSuccess) throw new Error('Telegram authorized without a code');
 
       this.activeSessions.set(sessionId, {
         client,
@@ -43,10 +53,13 @@ export class TelegramAuthManager {
         status: 'awaiting_code',
       });
 
-      logger.info(`Auth started for session ${sessionId}, phone: ${phoneNumber}`);
+      const deliveredTo = describeCodeDelivery(result.type);
+      logger.info(`Auth started for session ${sessionId}, code via ${result.type.className}`);
 
       return {
         sessionId,
+        codeLength: 'length' in result.type ? result.type.length : undefined,
+        deliveredTo,
       };
     } catch (error) {
       logger.error('Failed to start auth:', error);
