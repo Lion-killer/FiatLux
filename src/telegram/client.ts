@@ -9,6 +9,8 @@ import { logger } from '../utils/logger';
 export class TelegramChannelMonitor implements ITelegramMonitor {
   private static readonly GET_MESSAGES_TIMEOUT_MS = 30_000;
   private static readonly CONSECUTIVE_FAILURES_BEFORE_RECREATE = 3;
+  // GramJS connect() після вичерпаних connectionRetries не кидає помилку, а наступний запит чекає вічно
+  private static readonly RECREATE_TIMEOUT_MS = 90_000;
 
   private client: TelegramClient;
   private connected: boolean = false;
@@ -78,12 +80,15 @@ export class TelegramChannelMonitor implements ITelegramMonitor {
   }
 
   async getRecentMessages(limit: number = 50): Promise<Api.Message[]> {
-    if (!this.connected) {
-      throw new Error('Telegram client is not connected');
-    }
-
     try {
       this.lastFetchAt = new Date().toISOString();
+
+      // Попереднє пересоздання не вдалося — пробуємо ще раз (мережа могла повернутись)
+      if (!this.connected) {
+        await this.recreateClient();
+        if (!this.connected) throw new Error('Telegram client is not connected');
+      }
+
       logger.info(`Fetching ${limit} recent messages from ${config.telegram.channelUsername}...`);
 
       const messages = await this.withTimeout(
@@ -105,7 +110,7 @@ export class TelegramChannelMonitor implements ITelegramMonitor {
       logger.error(`Failed to fetch messages (failure #${this.consecutiveFailures}):`, error);
 
       // Після кількох послідовних невдач — пересоздаємо клієнт повністю
-      if (this.consecutiveFailures >= TelegramChannelMonitor.CONSECUTIVE_FAILURES_BEFORE_RECREATE) {
+      if (this.connected && this.consecutiveFailures >= TelegramChannelMonitor.CONSECUTIVE_FAILURES_BEFORE_RECREATE) {
         await this.recreateClient();
       }
 
@@ -150,8 +155,12 @@ export class TelegramChannelMonitor implements ITelegramMonitor {
       this.client = this.createClient();
 
       // Підключаємося
-      await this.client.connect();
-      this.connected = await this.client.isUserAuthorized();
+      const client = this.client;
+      this.connected = await this.withTimeout(
+        client.connect().then(() => client.isUserAuthorized()),
+        TelegramChannelMonitor.RECREATE_TIMEOUT_MS,
+        `Telegram reconnect timeout after ${TelegramChannelMonitor.RECREATE_TIMEOUT_MS}ms`
+      );
       this.consecutiveFailures = 0;
 
       if (this.connected) {
